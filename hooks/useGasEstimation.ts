@@ -4,17 +4,23 @@ import { erc20Abi, parseUnits } from "viem";
 import { useAccount, useBalance } from "wagmi";
 import { estimateGas, getPublicClient, getGasPrice } from "@wagmi/core";
 
-import { type Token } from "@/types";
+import { CHAIN_ID, type Token } from "@/types";
 import { calculateRequiredGasAmount } from "@/utils/utils";
 import { BIGINT_ZERO, GAS_CONSTANTS } from "@/utils/constants";
 import { config } from "@/config/wagmi";
 
 export const useGasEstimation = () => {
-  const { address } = useAccount();
+  const { address, chainId } = useAccount();
   const { data: balance } = useBalance({
     address: address,
   });
-  const client = useMemo(() => getPublicClient(config), []);
+  const client = useMemo(
+    () =>
+      getPublicClient(config, {
+        chainId: chainId as CHAIN_ID,
+      }),
+    [chainId]
+  );
   const [showGasError, setShowGasError] = useState(false);
   const [isEstimating, setIsEstimating] = useState(false);
 
@@ -32,12 +38,15 @@ export const useGasEstimation = () => {
     setShowGasError(false);
 
     try {
-      const gasPrice = await getGasPrice(config);
+      const gasPrice = await getGasPrice(config, {
+        chainId: chainId as CHAIN_ID,
+      });
       let gasEstimate: bigint;
 
       if (token.native_token) {
         try {
           gasEstimate = await estimateGas(config, {
+            chainId: chainId as CHAIN_ID,
             account: address,
             to: to,
             value: amountWei,
