@@ -10,19 +10,29 @@ import { erc20Abi, parseUnits } from "viem";
 import { toast } from "sonner";
 
 import { TransferFormValues } from "@/schema/transferSchema";
+import {
+  TransactionEstimate as TransactionEstimateType,
+  CHAIN_ID,
+} from "@/types";
 
 import { TokenAmountInput, AddressInput } from "@/components/main/input";
+import { TransactionEstimate } from "@/components/main/TransactionEstimate";
 import { useTransferForm } from "@/hooks/useTransferForm";
 import { useWalletTokens } from "@/hooks/useWalletTokens";
+import { useGasFees } from "@/hooks/useGasFees";
+import { useTransactionEstimation } from "@/hooks/useTransactionEstimation";
 import { config } from "@/config/wagmi";
 
 const TransferCard = () => {
-  const { isConnected } = useAccount();
+  const { isConnected, chainId } = useAccount();
   const { nativeToken } = useWalletTokens();
   const [isProcessing, setIsProcessing] = useState(false);
   const [txStatus, setTxStatus] = useState<"idle" | "signing" | "pending">(
     "idle"
   );
+  const [transactionEstimate, setTransactionEstimate] =
+    useState<TransactionEstimateType | null>(null);
+
   const {
     token,
     handleTokenSelect,
@@ -37,6 +47,12 @@ const TransferCard = () => {
 
   const selectedToken = isConnected ? token : null;
 
+  // Fetch gas fees from Infura API
+  const { gasFees } = useGasFees();
+
+  // Hook for transaction estimation
+  const { estimateTransaction } = useTransactionEstimation();
+
   const onSubmit = async (data: TransferFormValues) => {
     if (!selectedToken) {
       toast.error("No token selected");
@@ -45,6 +61,7 @@ const TransferCard = () => {
 
     setIsProcessing(true);
     setTxStatus("signing");
+    setTransactionEstimate(null); // Reset previous estimate
 
     try {
       const amountInWei = parseUnits(data.amount, selectedToken.decimals);
@@ -72,12 +89,36 @@ const TransferCard = () => {
       toast.dismiss();
       setTxStatus("pending");
 
-      toast.loading("Transaction pending...", {
-        description: `Hash: ${hash.slice(0, 10)}...${hash.slice(-8)}`,
-      });
+      // Estimate transaction after it's been submitted
+      if (gasFees && chainId) {
+        const estimate = await estimateTransaction(
+          hash,
+          gasFees,
+          chainId as CHAIN_ID
+        );
+        if (estimate) {
+          setTransactionEstimate(estimate);
+          toast.loading("Transaction pending...", {
+            description: `Hash: ${hash.slice(0, 10)}...${hash.slice(
+              -8
+            )}\nEstimated time: ~${Math.floor(
+              estimate.estimatedWaitTime / 1000
+            )}s`,
+          });
+        } else {
+          toast.loading("Transaction pending...", {
+            description: `Hash: ${hash.slice(0, 10)}...${hash.slice(-8)}`,
+          });
+        }
+      } else {
+        toast.loading("Transaction pending...", {
+          description: `Hash: ${hash.slice(0, 10)}...${hash.slice(-8)}`,
+        });
+      }
 
       const receipt = await waitForTransactionReceipt(config, {
         hash,
+        confirmations: 2,
       });
 
       toast.dismiss();
@@ -89,14 +130,17 @@ const TransferCard = () => {
           } to ${data.recipient.slice(0, 6)}...${data.recipient.slice(-4)}`,
         });
         reset();
+        setTransactionEstimate(null);
       } else {
         toast.error("Transaction failed", {
           description: "The transaction was reverted",
         });
+        setTransactionEstimate(null);
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       toast.dismiss();
+      setTransactionEstimate(null);
 
       if (error?.message?.includes("User rejected")) {
         toast.error("Transaction rejected", {
@@ -126,43 +170,52 @@ const TransferCard = () => {
   };
 
   return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="w-full bg-card rounded-3xl p-2.5 flex flex-col gap-y-2.5"
-    >
-      <div className="flex flex-col gap-y-2">
-        <TokenAmountInput
-          label="Amount"
-          placeholder="0"
-          register={register("amount")}
-          error={errors.amount?.message}
-          selectedToken={selectedToken}
-          onTokenSelect={handleTokenSelect}
-          setValue={setValue}
-          fieldName="amount"
-          getValues={getValues}
-          control={control}
-        />
-        <AddressInput
-          label="Recipient Address"
-          placeholder="0x..."
-          register={register("recipient")}
-          error={errors.recipient?.message}
-        />
-      </div>
-      <button
-        disabled={!isConnected || isProcessing}
-        className="py-4 px-5 rounded-2xl bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:bg-primary/60 disabled:cursor-not-allowed text-foreground text-lg font-semibold cursor-pointer"
+    <div className="w-full flex flex-col gap-y-0">
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="w-full bg-card rounded-3xl p-2.5 flex flex-col gap-y-2.5"
       >
-        {!isConnected
-          ? "Connect Wallet to Continue"
-          : isProcessing
-          ? txStatus === "signing"
-            ? "Confirm in Wallet..."
-            : "Transaction Pending..."
-          : "Send Tokens"}
-      </button>
-    </form>
+        <div className="flex flex-col gap-y-2">
+          <TokenAmountInput
+            label="Amount"
+            placeholder="0"
+            register={register("amount")}
+            error={errors.amount?.message}
+            selectedToken={selectedToken}
+            onTokenSelect={handleTokenSelect}
+            setValue={setValue}
+            fieldName="amount"
+            getValues={getValues}
+            control={control}
+          />
+          <AddressInput
+            label="Recipient Address"
+            placeholder="0x..."
+            register={register("recipient")}
+            error={errors.recipient?.message}
+          />
+        </div>
+        <button
+          disabled={!isConnected || isProcessing}
+          className="py-4 px-5 rounded-2xl bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:bg-primary/60 disabled:cursor-not-allowed text-foreground text-lg font-semibold cursor-pointer"
+        >
+          {!isConnected
+            ? "Connect Wallet to Continue"
+            : isProcessing
+            ? txStatus === "signing"
+              ? "Confirm in Wallet..."
+              : "Transaction Pending..."
+            : "Send Tokens"}
+        </button>
+      </form>
+
+      {transactionEstimate && (
+        <TransactionEstimate
+          estimate={transactionEstimate}
+          nativeSymbol={nativeToken?.symbol}
+        />
+      )}
+    </div>
   );
 };
 

@@ -13,3 +13,32 @@ export type Token = {
 };
 
 export type CHAIN_ID = 1 | 11155111 | 100 | 8453 | 84532;
+
+export type GasTier = "low" | "medium" | "high";
+
+export type GasFeeEstimate = {
+  suggestedMaxPriorityFeePerGas: string;
+  suggestedMaxFeePerGas: string;
+  minWaitTimeEstimate: number;
+  maxWaitTimeEstimate: number;
+};
+
+export type InfuraGasResponse = {
+  low: GasFeeEstimate;
+  medium: GasFeeEstimate;
+  high: GasFeeEstimate;
+  estimatedBaseFee: string;
+  networkCongestion: number;
+  latestPriorityFeeRange: [string, string];
+  historicalPriorityFeeRange: [string, string];
+  historicalBaseFeeRange: [string, string];
+  priorityFeeTrend: "up" | "down";
+  baseFeeTrend: "up" | "down";
+};
+
+export type TransactionEstimate = {
+  tier: GasTier;
+  estimatedWaitTime: number;
+  estimatedGasCost: bigint;
+  gasUsed: bigint;
+};
