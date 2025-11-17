@@ -1,20 +1,19 @@
-export const MORALIS_CHAIN_MAP = {
+import { sepolia, mainnet, gnosis, base, baseSepolia } from "viem/chains";
+
+export const MORALIS_CHAIN_MAP: Record<number, string> = {
   1: "eth",
   11155111: "sepolia",
-  42161: "arbitrum",
-  10: "optimism",
   100: "gnosis",
+  8453: "base",
   84532: "base sepolia",
 } as const;
 
-export const CHAIN_NAMES: Record<number, string> = {
-  1: "Ethereum",
-  11155111: "Sepolia",
-  42161: "Arbitrum",
-  10: "Optimism",
-  100: "Gnosis",
-  84532: "Base Sepolia",
-  10200: "Gnosis Chiado",
+export const ALCHEMY_NETWORK_SLUGS: Record<number, string> = {
+  [mainnet.id]: "eth-mainnet",
+  [sepolia.id]: "eth-sepolia",
+  [base.id]: "base-mainnet",
+  [baseSepolia.id]: "base-sepolia",
+  [gnosis.id]: "gnosis-mainnet",
 };
 
 export const GAS_CONSTANTS = {
