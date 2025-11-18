@@ -21,11 +21,12 @@ import { useTransferForm } from "@/hooks/useTransferForm";
 import { useWalletTokens } from "@/hooks/useWalletTokens";
 import { useGasFees } from "@/hooks/useGasFees";
 import { useTransactionEstimation } from "@/hooks/useTransactionEstimation";
+import { useTokenBalance } from "@/hooks/useTokenBalance";
 import { config } from "@/config/wagmi";
 
 const TransferCard = () => {
   const { isConnected, chainId } = useAccount();
-  const { nativeToken, refetch } = useWalletTokens();
+  const { nativeToken } = useWalletTokens();
   const [isProcessing, setIsProcessing] = useState(false);
   const [txStatus, setTxStatus] = useState<"idle" | "signing" | "pending">(
     "idle"
@@ -49,6 +50,9 @@ const TransferCard = () => {
 
   // Fetch gas fees from Infura API
   const { gasFees } = useGasFees();
+
+  // Get refetch function for the selected token's balance
+  const { refetchBalance } = useTokenBalance(selectedToken, undefined);
 
   // Hook for transaction estimation
   const { estimateTransaction } = useTransactionEstimation();
@@ -129,8 +133,13 @@ const TransferCard = () => {
             selectedToken.symbol
           } to ${data.recipient.slice(0, 6)}...${data.recipient.slice(-4)}`,
         });
-        reset();
-        refetch();
+        // Reset only amount and recipient, keep tokenAddress
+        reset({
+          amount: "",
+          recipient: "",
+          tokenAddress: selectedToken.token_address,
+        });
+        await refetchBalance();
         setTransactionEstimate(null);
       } else {
         toast.error("Transaction failed", {

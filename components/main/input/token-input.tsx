@@ -49,7 +49,7 @@ const TokenAmountInput = ({
   const { isConnected, address } = useAccount();
   const amount = useWatch({ name: fieldName, control });
 
-  const { formattedBalance, isInsufficientBalance, usdValue } = useTokenBalance(
+  const { formattedBalance, isInsufficientBalance, usdValue, balanceInWei: balanceWeiString } = useTokenBalance(
     selectedToken ?? null,
     amount
   );
@@ -61,7 +61,7 @@ const TokenAmountInput = ({
   const handlePercentageClick = async (percentage: number) => {
     if (!selectedToken) return;
 
-    const balanceInWei = BigInt(selectedToken.balance);
+    const balanceInWei = BigInt(balanceWeiString);
 
     const percentageBig = BigInt(Math.floor(percentage));
     const recipient = (getValues("recipient") as `0x${string}`) || address;

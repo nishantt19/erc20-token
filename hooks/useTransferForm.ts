@@ -19,7 +19,7 @@ export const useTransferForm = ({
   const { isConnected } = useAccount();
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
 
-  const token = isConnected ? (selectedToken ?? initialToken) : null;
+  const token = isConnected ? selectedToken ?? initialToken : null;
 
   const form = useForm<TransferFormValues>({
     resolver: zodResolver(transferSchema),
