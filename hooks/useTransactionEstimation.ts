@@ -67,14 +67,29 @@ export const useTransactionEstimation = () => {
       chainId: CHAIN_ID
     ): Promise<TransactionEstimate | null> => {
       try {
-        // Fetch the actual transaction details
-        const transaction = await getTransaction(config, {
-          hash: txHash,
-          chainId,
-        });
+        // Retry mechanism: transaction might not be immediately available
+        let transaction = null;
+        let retries = 0;
+        const maxRetries = 5;
+        const retryDelay = 1000; // 1 second
+
+        while (!transaction && retries < maxRetries) {
+          try {
+            transaction = await getTransaction(config, {
+              hash: txHash,
+              chainId,
+            });
+          } catch (error) {
+            retries++;
+            if (retries < maxRetries) {
+              console.log(`Transaction not found yet, retrying (${retries}/${maxRetries})...`);
+              await new Promise(resolve => setTimeout(resolve, retryDelay));
+            }
+          }
+        }
 
         if (!transaction) {
-          console.error("Transaction not found");
+          console.error("Transaction not found after retries");
           return null;
         }
 

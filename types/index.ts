@@ -42,3 +42,18 @@ export type TransactionEstimate = {
   estimatedGasCost: bigint;
   gasUsed: bigint;
 };
+
+export type TransactionStatus = {
+  hash: `0x${string}`;
+  status: "pending" | "included" | "confirmed";
+  blockNumber?: bigint;
+  submittedAt: number; // timestamp
+  confirmedAt?: number; // timestamp
+  completionTimeSeconds?: number; // elapsed time in seconds (from timer)
+  amount: string;
+  recipient: string;
+  tokenSymbol: string;
+  isNativeToken: boolean;
+};
+
+export type NetworkCongestionLevel = "low" | "medium" | "high";

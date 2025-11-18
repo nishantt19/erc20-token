@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
 import {
   sendTransaction,
@@ -12,16 +12,20 @@ import { toast } from "sonner";
 import { TransferFormValues } from "@/schema/transferSchema";
 import {
   TransactionEstimate as TransactionEstimateType,
+  TransactionStatus,
   CHAIN_ID,
 } from "@/types";
 
 import { TokenAmountInput, AddressInput } from "@/components/main/input";
 import { TransactionEstimate } from "@/components/main/TransactionEstimate";
+import { TransactionStatusCard } from "@/components/main/TransactionStatusCard";
+import { CompletionDetailsCard } from "@/components/main/CompletionDetailsCard";
 import { useTransferForm } from "@/hooks/useTransferForm";
 import { useWalletTokens } from "@/hooks/useWalletTokens";
 import { useGasFees } from "@/hooks/useGasFees";
 import { useTransactionEstimation } from "@/hooks/useTransactionEstimation";
 import { useTokenBalance } from "@/hooks/useTokenBalance";
+import { useTransactionStatus } from "@/hooks/useTransactionStatus";
 import { config } from "@/config/wagmi";
 
 const TransferCard = () => {
@@ -33,6 +37,11 @@ const TransferCard = () => {
   );
   const [transactionEstimate, setTransactionEstimate] =
     useState<TransactionEstimateType | null>(null);
+  const [currentTxStatus, setCurrentTxStatus] =
+    useState<TransactionStatus | null>(null);
+  const [completedTx, setCompletedTx] = useState<TransactionStatus | null>(
+    null
+  );
 
   const {
     token,
@@ -57,6 +66,23 @@ const TransferCard = () => {
   // Hook for transaction estimation
   const { estimateTransaction } = useTransactionEstimation();
 
+  // Monitor transaction status (pending vs included in block)
+  const { status: liveStatus, blockNumber } = useTransactionStatus({
+    hash: currentTxStatus?.hash ?? null,
+    chainId: chainId as CHAIN_ID | undefined,
+  });
+
+  // Auto-hide completion card after 10 seconds
+  useEffect(() => {
+    if (completedTx) {
+      const timer = setTimeout(() => {
+        setCompletedTx(null);
+      }, 10000); // 10 seconds
+
+      return () => clearTimeout(timer);
+    }
+  }, [completedTx]);
+
   const onSubmit = async (data: TransferFormValues) => {
     if (!selectedToken) {
       toast.error("No token selected");
@@ -66,6 +92,8 @@ const TransferCard = () => {
     setIsProcessing(true);
     setTxStatus("signing");
     setTransactionEstimate(null); // Reset previous estimate
+    setCurrentTxStatus(null); // Reset current transaction
+    setCompletedTx(null); // Reset completed transaction
 
     try {
       const amountInWei = parseUnits(data.amount, selectedToken.decimals);
@@ -92,6 +120,20 @@ const TransferCard = () => {
 
       toast.dismiss();
       setTxStatus("pending");
+
+      // Capture submission time
+      const submittedAt = Date.now();
+
+      // Set current transaction status
+      setCurrentTxStatus({
+        hash,
+        status: "pending",
+        submittedAt,
+        amount: data.amount,
+        recipient: data.recipient,
+        tokenSymbol: selectedToken.symbol,
+        isNativeToken: selectedToken.native_token,
+      });
 
       // Estimate transaction after it's been submitted
       if (gasFees && chainId) {
@@ -125,9 +167,36 @@ const TransferCard = () => {
         confirmations: 2,
       });
 
+      // Capture the exact time when receipt is received
+      const confirmedAt = Date.now();
+      // Calculate elapsed time in seconds (matching the timer's calculation)
+      const completionTimeSeconds = Math.floor(
+        (confirmedAt - submittedAt) / 1000
+      );
+
+      console.log("Transaction completed:", {
+        submittedAt,
+        confirmedAt,
+        completionTimeSeconds,
+      });
+
       toast.dismiss();
 
       if (receipt.status === "success") {
+        // Set completed transaction data
+        setCompletedTx({
+          hash,
+          status: "confirmed",
+          blockNumber: receipt.blockNumber,
+          submittedAt,
+          confirmedAt,
+          completionTimeSeconds,
+          amount: data.amount,
+          recipient: data.recipient,
+          tokenSymbol: selectedToken.symbol,
+          isNativeToken: selectedToken.native_token,
+        });
+
         toast.success("Transfer successful!", {
           description: `Sent ${data.amount} ${
             selectedToken.symbol
@@ -141,16 +210,19 @@ const TransferCard = () => {
         });
         await refetchBalance();
         setTransactionEstimate(null);
+        setCurrentTxStatus(null); // Clear pending transaction
       } else {
         toast.error("Transaction failed", {
           description: "The transaction was reverted",
         });
         setTransactionEstimate(null);
+        setCurrentTxStatus(null);
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       toast.dismiss();
       setTransactionEstimate(null);
+      setCurrentTxStatus(null);
 
       if (error?.message?.includes("User rejected")) {
         toast.error("Transaction rejected", {
@@ -223,6 +295,28 @@ const TransferCard = () => {
         <TransactionEstimate
           estimate={transactionEstimate}
           nativeSymbol={nativeToken?.symbol}
+        />
+      )}
+
+      {/* Transaction Status Card - shown while transaction is pending */}
+      {currentTxStatus && (
+        <TransactionStatusCard
+          startTime={currentTxStatus.submittedAt}
+          blockNumber={blockNumber}
+          status={liveStatus === "included" ? "included" : "pending"}
+          networkCongestion={gasFees?.networkCongestion}
+        />
+      )}
+
+      {/* Completion Details Card - shown after transaction is confirmed */}
+      {completedTx && chainId && (
+        <CompletionDetailsCard
+          hash={completedTx.hash}
+          amount={completedTx.amount}
+          tokenSymbol={completedTx.tokenSymbol}
+          completionTimeSeconds={completedTx.completionTimeSeconds!}
+          isNativeToken={completedTx.isNativeToken}
+          chainId={chainId as CHAIN_ID}
         />
       )}
     </div>

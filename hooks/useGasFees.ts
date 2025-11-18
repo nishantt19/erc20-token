@@ -6,7 +6,11 @@ import { InfuraGasResponse } from "@/types";
 export const useGasFees = () => {
   const { chainId } = useAccount();
 
-  const { data: gasFees, isLoading, error } = useQuery<InfuraGasResponse>({
+  const {
+    data: gasFees,
+    isLoading,
+    error,
+  } = useQuery<InfuraGasResponse>({
     queryKey: ["gasFees", chainId],
     queryFn: async () => {
       if (!chainId) throw new Error("No chain ID available");

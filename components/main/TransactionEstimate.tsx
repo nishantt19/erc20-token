@@ -13,12 +13,27 @@ export const TransactionEstimate = ({
   if (!estimate) return null;
 
   const formatWaitTime = (milliseconds: number): string => {
-    const seconds = Math.floor(milliseconds / 1000);
-    if (seconds < 60) {
-      return `~${seconds}s`;
+    const seconds = milliseconds / 1000;
+
+    // For values less than 1 second, show decimal
+    if (seconds < 1) {
+      return `~${seconds.toFixed(2)}s`;
     }
+
+    // For values less than 60 seconds, show whole seconds
+    if (seconds < 60) {
+      return `~${Math.floor(seconds)}s`;
+    }
+
+    // For values 60+ seconds, show minutes
     const minutes = Math.floor(seconds / 60);
-    return `~${minutes}m`;
+    const remainingSeconds = Math.floor(seconds % 60);
+
+    if (remainingSeconds === 0) {
+      return `~${minutes}m`;
+    }
+
+    return `~${minutes}m ${remainingSeconds}s`;
   };
 
   const getTierColor = (tier: string): string => {
