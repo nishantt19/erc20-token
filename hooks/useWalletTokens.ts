@@ -18,10 +18,12 @@ export const useWalletTokens = () => {
 
   const chain = useMemo(() => MORALIS_CHAIN_MAP[chainId], [chainId]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, refetch } = useQuery({
     queryKey: ["walletTokens", address, chain],
     queryFn: () => fetchWalletTokens(address!, chain!),
     enabled: !!address && !!chain && isConnected,
+    refetchOnWindowFocus: true,
+    staleTime: 60 * 1000,
   });
 
   const nativeToken: Token = useMemo(() => {
@@ -33,5 +35,6 @@ export const useWalletTokens = () => {
     nativeToken,
     isLoading,
     isConnected,
+    refetch,
   };
 };

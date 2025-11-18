@@ -25,7 +25,7 @@ import { config } from "@/config/wagmi";
 
 const TransferCard = () => {
   const { isConnected, chainId } = useAccount();
-  const { nativeToken } = useWalletTokens();
+  const { nativeToken, refetch } = useWalletTokens();
   const [isProcessing, setIsProcessing] = useState(false);
   const [txStatus, setTxStatus] = useState<"idle" | "signing" | "pending">(
     "idle"
@@ -130,6 +130,7 @@ const TransferCard = () => {
           } to ${data.recipient.slice(0, 6)}...${data.recipient.slice(-4)}`,
         });
         reset();
+        refetch();
         setTransactionEstimate(null);
       } else {
         toast.error("Transaction failed", {
