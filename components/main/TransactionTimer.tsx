@@ -1,39 +1,31 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface TransactionTimerProps {
-  startTime: number; // timestamp in milliseconds
+  startTime: number;
 }
+
+const UPDATE_INTERVAL = 1000;
+
+const formatTime = (seconds: number): string => {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return mins === 0 ? `${secs}s` : `${mins}m ${secs}s`;
+};
 
 export const TransactionTimer = ({ startTime }: TransactionTimerProps) => {
   const [elapsedTime, setElapsedTime] = useState(0);
 
-  useEffect(() => {
-    const updateElapsedTime = () => {
-      const now = Date.now();
-      const elapsed = Math.floor((now - startTime) / 1000); // Convert to seconds
-      setElapsedTime(elapsed);
-    };
-
-    // Update immediately
-    updateElapsedTime();
-
-    // Update every second
-    const interval = setInterval(updateElapsedTime, 1000);
-
-    return () => clearInterval(interval);
+  const updateElapsedTime = useCallback(() => {
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    setElapsedTime(elapsed);
   }, [startTime]);
 
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-
-    if (mins === 0) {
-      return `${secs}s`;
-    }
-
-    return `${mins}m ${secs}s`;
-  };
+  useEffect(() => {
+    updateElapsedTime();
+    const interval = setInterval(updateElapsedTime, UPDATE_INTERVAL);
+    return () => clearInterval(interval);
+  }, [updateElapsedTime]);
 
   return (
     <div className="flex items-center justify-between">

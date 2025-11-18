@@ -14,7 +14,7 @@ export const ALCHEMY_NETWORK_SLUGS: Record<number, string> = {
   [base.id]: "base-mainnet",
   [baseSepolia.id]: "base-sepolia",
   [gnosis.id]: "gnosis-mainnet",
-};
+} as const;
 
 export const GAS_CONSTANTS = {
   STANDARD_TRANSFER_GAS: BigInt(21000),

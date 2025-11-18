@@ -1,18 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
+import { useMemo } from "react";
 import axios from "axios";
 import { InfuraGasResponse } from "@/types";
+
+const REFETCH_INTERVAL = 12000;
 
 export const useGasFees = () => {
   const { chainId } = useAccount();
 
-  const {
-    data: gasFees,
-    isLoading,
-    error,
-  } = useQuery<InfuraGasResponse>({
-    queryKey: ["gasFees", chainId],
-    queryFn: async () => {
+  const queryFn = useMemo(
+    () => async () => {
       if (!chainId) throw new Error("No chain ID available");
 
       const response = await axios.get<InfuraGasResponse>(
@@ -20,9 +18,19 @@ export const useGasFees = () => {
       );
       return response.data;
     },
+    [chainId]
+  );
+
+  const {
+    data: gasFees,
+    isLoading,
+    error,
+  } = useQuery<InfuraGasResponse>({
+    queryKey: ["gasFees", chainId],
+    queryFn,
     enabled: !!chainId,
-    staleTime: 12000, // 12 seconds - gas prices change frequently
-    refetchInterval: 12000, // Refetch every 12 seconds
+    staleTime: REFETCH_INTERVAL,
+    refetchInterval: REFETCH_INTERVAL,
   });
 
   return {

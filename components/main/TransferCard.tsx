@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAccount } from "wagmi";
 import {
   sendTransaction,
@@ -27,6 +27,9 @@ import { useTransactionEstimation } from "@/hooks/useTransactionEstimation";
 import { useTokenBalance } from "@/hooks/useTokenBalance";
 import { useTransactionStatus } from "@/hooks/useTransactionStatus";
 import { config } from "@/config/wagmi";
+import { truncateHash } from "@/utils/utils";
+
+const AUTO_HIDE_DELAY = 10000;
 
 const TransferCard = () => {
   const { isConnected, chainId } = useAccount();
@@ -56,120 +59,37 @@ const TransferCard = () => {
   } = useTransferForm({ initialToken: nativeToken });
 
   const selectedToken = isConnected ? token : null;
-
-  // Fetch gas fees from Infura API
   const { gasFees } = useGasFees();
-
-  // Get refetch function for the selected token's balance
   const { refetchBalance } = useTokenBalance(selectedToken, undefined);
-
-  // Hook for transaction estimation
   const { estimateTransaction } = useTransactionEstimation();
 
-  // Monitor transaction status (pending vs included in block)
   const { status: liveStatus, blockNumber } = useTransactionStatus({
     hash: currentTxStatus?.hash ?? null,
     chainId: chainId as CHAIN_ID | undefined,
   });
 
-  // Auto-hide completion card after 10 seconds
   useEffect(() => {
     if (completedTx) {
       const timer = setTimeout(() => {
         setCompletedTx(null);
-      }, 10000); // 10 seconds
+      }, AUTO_HIDE_DELAY);
 
       return () => clearTimeout(timer);
     }
   }, [completedTx]);
 
-  const onSubmit = async (data: TransferFormValues) => {
-    if (!selectedToken) {
-      toast.error("No token selected");
-      return;
-    }
-
-    setIsProcessing(true);
-    setTxStatus("signing");
-    setTransactionEstimate(null); // Reset previous estimate
-    setCurrentTxStatus(null); // Reset current transaction
-    setCompletedTx(null); // Reset completed transaction
-
-    try {
-      const amountInWei = parseUnits(data.amount, selectedToken.decimals);
-
-      let hash: `0x${string}`;
-
-      if (selectedToken.native_token) {
-        toast.loading("Initiating Native Token transfer...");
-
-        hash = await sendTransaction(config, {
-          to: data.recipient as `0x${string}`,
-          value: amountInWei,
-        });
-      } else {
-        toast.loading("Initiating ERC20 Token transfer...");
-
-        hash = await writeContract(config, {
-          address: selectedToken.token_address,
-          abi: erc20Abi,
-          functionName: "transfer",
-          args: [data.recipient as `0x${string}`, amountInWei],
-        });
-      }
-
-      toast.dismiss();
-      setTxStatus("pending");
-
-      // Capture submission time
-      const submittedAt = Date.now();
-
-      // Set current transaction status
-      setCurrentTxStatus({
-        hash,
-        status: "pending",
-        submittedAt,
-        amount: data.amount,
-        recipient: data.recipient,
-        tokenSymbol: selectedToken.symbol,
-        isNativeToken: selectedToken.native_token,
-      });
-
-      // Estimate transaction after it's been submitted
-      if (gasFees && chainId) {
-        const estimate = await estimateTransaction(
-          hash,
-          gasFees,
-          chainId as CHAIN_ID
-        );
-        if (estimate) {
-          setTransactionEstimate(estimate);
-          toast.loading("Transaction pending...", {
-            description: `Hash: ${hash.slice(0, 10)}...${hash.slice(
-              -8
-            )}\nEstimated time: ~${Math.floor(
-              estimate.estimatedWaitTime / 1000
-            )}s`,
-          });
-        } else {
-          toast.loading("Transaction pending...", {
-            description: `Hash: ${hash.slice(0, 10)}...${hash.slice(-8)}`,
-          });
-        }
-      } else {
-        toast.loading("Transaction pending...", {
-          description: `Hash: ${hash.slice(0, 10)}...${hash.slice(-8)}`,
-        });
-      }
-
+  const handleTransactionSuccess = useCallback(
+    async (
+      hash: `0x${string}`,
+      data: TransferFormValues,
+      submittedAt: number
+    ) => {
       const receipt = await waitForTransactionReceipt(config, {
         hash,
         confirmations: 2,
       });
 
-      // Capture the exact time when receipt is received
       const confirmedAt = Date.now();
-      // Calculate elapsed time in seconds (matching the timer's calculation)
       const completionTimeSeconds = Math.floor(
         (confirmedAt - submittedAt) / 1000
       );
@@ -183,7 +103,6 @@ const TransferCard = () => {
       toast.dismiss();
 
       if (receipt.status === "success") {
-        // Set completed transaction data
         setCompletedTx({
           hash,
           status: "confirmed",
@@ -193,24 +112,25 @@ const TransferCard = () => {
           completionTimeSeconds,
           amount: data.amount,
           recipient: data.recipient,
-          tokenSymbol: selectedToken.symbol,
-          isNativeToken: selectedToken.native_token,
+          tokenSymbol: selectedToken!.symbol,
+          isNativeToken: selectedToken!.native_token,
         });
 
         toast.success("Transfer successful!", {
           description: `Sent ${data.amount} ${
-            selectedToken.symbol
+            selectedToken!.symbol
           } to ${data.recipient.slice(0, 6)}...${data.recipient.slice(-4)}`,
         });
-        // Reset only amount and recipient, keep tokenAddress
+
         reset({
           amount: "",
           recipient: "",
-          tokenAddress: selectedToken.token_address,
+          tokenAddress: selectedToken!.token_address,
         });
+
         await refetchBalance();
         setTransactionEstimate(null);
-        setCurrentTxStatus(null); // Clear pending transaction
+        setCurrentTxStatus(null);
       } else {
         toast.error("Transaction failed", {
           description: "The transaction was reverted",
@@ -218,8 +138,43 @@ const TransferCard = () => {
         setTransactionEstimate(null);
         setCurrentTxStatus(null);
       }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
+    },
+    [selectedToken, reset, refetchBalance]
+  );
+
+  const handleTransactionEstimate = useCallback(
+    async (hash: `0x${string}`) => {
+      if (gasFees && chainId) {
+        const estimate = await estimateTransaction(
+          hash,
+          gasFees,
+          chainId as CHAIN_ID
+        );
+        if (estimate) {
+          setTransactionEstimate(estimate);
+          toast.loading("Transaction pending...", {
+            description: `Hash: ${truncateHash(
+              hash
+            )}\nEstimated time: ~${Math.floor(
+              estimate.estimatedWaitTime / 1000
+            )}s`,
+          });
+        } else {
+          toast.loading("Transaction pending...", {
+            description: `Hash: ${truncateHash(hash)}`,
+          });
+        }
+      } else {
+        toast.loading("Transaction pending...", {
+          description: `Hash: ${truncateHash(hash)}`,
+        });
+      }
+    },
+    [gasFees, chainId, estimateTransaction]
+  );
+
+  const handleError = useCallback(
+    (error: Error & { message?: string }) => {
       toast.dismiss();
       setTransactionEstimate(null);
       setCurrentTxStatus(null);
@@ -230,7 +185,7 @@ const TransferCard = () => {
         });
       } else if (error?.message?.includes("insufficient funds")) {
         toast.error("Insufficient funds", {
-          description: selectedToken.native_token
+          description: selectedToken?.native_token
             ? "You don't have enough balance to cover the transfer and gas fees"
             : "You don't have enough balance for this transfer or gas fees",
         });
@@ -245,10 +200,81 @@ const TransferCard = () => {
       }
 
       console.error("Transfer error:", error);
-    } finally {
-      setIsProcessing(false);
-      setTxStatus("idle");
-    }
+    },
+    [selectedToken]
+  );
+
+  const onSubmit = useCallback(
+    async (data: TransferFormValues) => {
+      if (!selectedToken) {
+        toast.error("No token selected");
+        return;
+      }
+
+      setIsProcessing(true);
+      setTxStatus("signing");
+      setTransactionEstimate(null);
+      setCurrentTxStatus(null);
+      setCompletedTx(null);
+
+      try {
+        const amountInWei = parseUnits(data.amount, selectedToken.decimals);
+        let hash: `0x${string}`;
+
+        if (selectedToken.native_token) {
+          toast.loading("Initiating Native Token transfer...");
+          hash = await sendTransaction(config, {
+            to: data.recipient as `0x${string}`,
+            value: amountInWei,
+          });
+        } else {
+          toast.loading("Initiating ERC20 Token transfer...");
+          hash = await writeContract(config, {
+            address: selectedToken.token_address,
+            abi: erc20Abi,
+            functionName: "transfer",
+            args: [data.recipient as `0x${string}`, amountInWei],
+          });
+        }
+
+        toast.dismiss();
+        setTxStatus("pending");
+
+        const submittedAt = Date.now();
+
+        setCurrentTxStatus({
+          hash,
+          status: "pending",
+          submittedAt,
+          amount: data.amount,
+          recipient: data.recipient,
+          tokenSymbol: selectedToken.symbol,
+          isNativeToken: selectedToken.native_token,
+        });
+
+        await handleTransactionEstimate(hash);
+        await handleTransactionSuccess(hash, data, submittedAt);
+      } catch (error) {
+        handleError(error as Error);
+      } finally {
+        setIsProcessing(false);
+        setTxStatus("idle");
+      }
+    },
+    [
+      selectedToken,
+      handleTransactionEstimate,
+      handleTransactionSuccess,
+      handleError,
+    ]
+  );
+
+  const getButtonText = () => {
+    if (!isConnected) return "Connect Wallet to Continue";
+    if (!isProcessing) return "Send Tokens";
+    return txStatus === "signing"
+      ? "Confirm in Wallet..."
+      : "Transaction Pending...";
   };
 
   return (
@@ -281,13 +307,7 @@ const TransferCard = () => {
           disabled={!isConnected || isProcessing}
           className="py-4 px-5 rounded-2xl bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:bg-primary/60 disabled:cursor-not-allowed text-foreground text-lg font-semibold cursor-pointer"
         >
-          {!isConnected
-            ? "Connect Wallet to Continue"
-            : isProcessing
-            ? txStatus === "signing"
-              ? "Confirm in Wallet..."
-              : "Transaction Pending..."
-            : "Send Tokens"}
+          {getButtonText()}
         </button>
       </form>
 
@@ -298,7 +318,6 @@ const TransferCard = () => {
         />
       )}
 
-      {/* Transaction Status Card - shown while transaction is pending */}
       {currentTxStatus && (
         <TransactionStatusCard
           startTime={currentTxStatus.submittedAt}
@@ -308,7 +327,6 @@ const TransferCard = () => {
         />
       )}
 
-      {/* Completion Details Card - shown after transaction is confirmed */}
       {completedTx && chainId && (
         <CompletionDetailsCard
           hash={completedTx.hash}

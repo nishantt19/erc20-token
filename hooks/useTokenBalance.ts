@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import { formatUnits, erc20Abi } from "viem";
 import { useAccount, useReadContract, useBalance } from "wagmi";
 import { type Token } from "@/types";
@@ -7,7 +7,6 @@ import { formatBalance, calculateUsdValue } from "@/utils/utils";
 export const useTokenBalance = (token: Token | null, amount?: string) => {
   const { address } = useAccount();
 
-  // Fetch native token balance using useBalance
   const { data: nativeBalanceData, refetch: refetchNativeBalance } = useBalance(
     {
       address: address,
@@ -17,7 +16,6 @@ export const useTokenBalance = (token: Token | null, amount?: string) => {
     }
   );
 
-  // Fetch ERC20 token balance using useReadContract
   const { data: erc20BalanceData, refetch: refetchERC20Balance } =
     useReadContract({
       address: token?.token_address as `0x${string}`,
@@ -29,14 +27,9 @@ export const useTokenBalance = (token: Token | null, amount?: string) => {
       },
     });
 
-  // Get live balance from blockchain only
   const liveBalance = useMemo(() => {
     if (!token) return "0";
-
-    if (token.native_token) {
-      return nativeBalanceData?.value.toString() ?? "0";
-    }
-
+    if (token.native_token) return nativeBalanceData?.value.toString() ?? "0";
     return erc20BalanceData?.toString() ?? "0";
   }, [token, nativeBalanceData, erc20BalanceData]);
 
@@ -57,21 +50,17 @@ export const useTokenBalance = (token: Token | null, amount?: string) => {
 
   const isInsufficientBalance = useMemo(() => {
     if (!amount || !token) return false;
-    const currentAmount = parseFloat(amount);
-    const tokenBalance = parseFloat(balance);
-    return currentAmount > tokenBalance;
+    return parseFloat(amount) > parseFloat(balance);
   }, [amount, balance, token]);
 
-  // Unified refetch function that refetches the appropriate balance
-  const refetchBalance = async () => {
+  const refetchBalance = useCallback(async () => {
     if (!token) return;
-
     if (token.native_token) {
       await refetchNativeBalance();
     } else {
       await refetchERC20Balance();
     }
-  };
+  }, [token, refetchNativeBalance, refetchERC20Balance]);
 
   return {
     balance,

@@ -5,12 +5,12 @@ import axios from "axios";
 import { MORALIS_CHAIN_MAP } from "@/utils/constants";
 import { type Token } from "@/types";
 
-async function fetchWalletTokens(address: string, chain: string) {
+const fetchWalletTokens = async (address: string, chain: string) => {
   const res = await axios.get("/api/tokens", {
     params: { address, chain },
   });
   return res.data;
-}
+};
 
 export const useWalletTokens = () => {
   const { address, isConnected } = useAccount();
@@ -23,15 +23,18 @@ export const useWalletTokens = () => {
     queryFn: () => fetchWalletTokens(address!, chain!),
     enabled: !!address && !!chain && isConnected,
     refetchOnWindowFocus: true,
-    staleTime: 60 * 1000,
+    staleTime: 60000,
   });
 
-  const nativeToken: Token = useMemo(() => {
-    return data?.result?.find((token: Token) => token.native_token) || null;
-  }, [data]);
+  const tokens = useMemo(() => data?.result || [], [data?.result]);
+
+  const nativeToken = useMemo(() =>
+    tokens.find((token: Token) => token.native_token) || null,
+    [tokens]
+  );
 
   return {
-    tokens: data?.result || [],
+    tokens,
     nativeToken,
     isLoading,
     isConnected,

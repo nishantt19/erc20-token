@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useAccount } from "wagmi";
 import {
   type UseFormGetValues,
@@ -9,6 +9,7 @@ import {
   useWatch,
 } from "react-hook-form";
 import { ArrowDown2 } from "iconsax-react";
+import { formatUnits } from "viem";
 
 import { computeMaxNativeInput } from "@/utils/utils";
 import { type Token } from "@/types";
@@ -18,7 +19,6 @@ import { InputWrapper } from "@/components/ui/InputWrapper";
 import { type TransferFormValues } from "@/schema/transferSchema";
 import { useTokenBalance } from "@/hooks/useTokenBalance";
 import { useGasEstimation } from "@/hooks/useGasEstimation";
-import { formatUnits } from "viem";
 import { PercentageButtons } from "@/components/main/input/PercentageButtons";
 
 type TokenAmountInputProps = {
@@ -49,41 +49,54 @@ const TokenAmountInput = ({
   const { isConnected, address } = useAccount();
   const amount = useWatch({ name: fieldName, control });
 
-  const { formattedBalance, isInsufficientBalance, usdValue, balanceInWei: balanceWeiString } = useTokenBalance(
-    selectedToken ?? null,
-    amount
-  );
+  const {
+    formattedBalance,
+    isInsufficientBalance,
+    usdValue,
+    balanceInWei: balanceWeiString,
+  } = useTokenBalance(selectedToken ?? null, amount);
   const { getRequiredGasAmount } = useGasEstimation();
 
   const [isHovered, setIsHovered] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const handlePercentageClick = async (percentage: number) => {
-    if (!selectedToken) return;
+  const handlePercentageClick = useCallback(
+    async (percentage: number) => {
+      if (!selectedToken) return;
 
-    const balanceInWei = BigInt(balanceWeiString);
+      const balanceInWei = BigInt(balanceWeiString);
+      const percentageBig = BigInt(Math.floor(percentage));
+      const recipient = (getValues("recipient") as `0x${string}`) || address;
+      let amountWei = (balanceInWei * percentageBig) / BigInt(100);
 
-    const percentageBig = BigInt(Math.floor(percentage));
-    const recipient = (getValues("recipient") as `0x${string}`) || address;
-    let amountWei = (balanceInWei * percentageBig) / BigInt(100);
-
-    if (percentage === 100) {
-      if (selectedToken.native_token) {
+      if (percentage === 100 && selectedToken.native_token) {
         const requiredGasAmountWei = await getRequiredGasAmount(
           selectedToken,
           balanceInWei,
           recipient
         );
-
         amountWei = computeMaxNativeInput(balanceInWei, requiredGasAmountWei);
-      } else {
-        amountWei = balanceInWei;
       }
-    }
 
-    const formattedAmount = formatUnits(amountWei, selectedToken.decimals);
-    setValue(fieldName, formattedAmount, { shouldValidate: true });
-  };
+      const formattedAmount = formatUnits(amountWei, selectedToken.decimals);
+      setValue(fieldName, formattedAmount, { shouldValidate: true });
+    },
+    [
+      selectedToken,
+      balanceWeiString,
+      getValues,
+      address,
+      getRequiredGasAmount,
+      setValue,
+      fieldName,
+    ]
+  );
+
+  const handleModalOpen = useCallback(() => {
+    if (isConnected) {
+      setIsModalOpen(true);
+    }
+  }, [isConnected]);
 
   return (
     <>
@@ -106,7 +119,7 @@ const TokenAmountInput = ({
             {selectedToken ? (
               <div
                 className="rounded-full pl-1 pr-3 flex justify-between items-center gap-x-2 bg-select border border-border-select hover:bg-select-hover h-10 cursor-pointer shrink-0"
-                onClick={() => setIsModalOpen(true)}
+                onClick={handleModalOpen}
               >
                 <TokenAvatar token={selectedToken} size="sm" />
                 <p className="text-white text-base font-medium">
@@ -121,11 +134,7 @@ const TokenAmountInput = ({
                     ? "bg-primary shadow-md hover:bg-primary/90 cursor-pointer"
                     : "opacity-60 bg-primary/60 cursor-not-allowed"
                 } text-foreground gap-x-1.5`}
-                onClick={() => {
-                  if (isConnected) {
-                    setIsModalOpen(true);
-                  }
-                }}
+                onClick={handleModalOpen}
               >
                 {!isConnected ? "Connect Wallet" : "Select Token"}
                 <ArrowDown2 color="#ffffff" size={20} />
@@ -147,7 +156,6 @@ const TokenAmountInput = ({
               <span className="text-secondary/60">${usdValue}</span>
             )}
 
-            {/* Quick amount selection buttons */}
             <PercentageButtons
               selectedToken={selectedToken ?? null}
               isHovered={isHovered}

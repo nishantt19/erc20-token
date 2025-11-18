@@ -1,8 +1,9 @@
 "use client";
 import { useState } from "react";
 import { IoCheckmark, IoCopy, IoOpenOutline } from "react-icons/io5";
-import { formatTxHash, getTransactionUrl } from "@/utils/blockExplorer";
+import { getTransactionUrl } from "@/utils/blockExplorer";
 import { CHAIN_ID } from "@/types";
+import { truncateHash } from "@/utils/utils";
 
 interface CompletionDetailsCardProps {
   hash: `0x${string}`;
@@ -12,6 +13,14 @@ interface CompletionDetailsCardProps {
   isNativeToken: boolean;
   chainId: CHAIN_ID;
 }
+
+const COPY_RESET_DELAY = 2000;
+
+const formatCompletionTime = (seconds: number): string => {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return mins === 0 ? `${secs}s` : `${mins}m ${secs}s`;
+};
 
 export const CompletionDetailsCard = ({
   hash,
@@ -24,23 +33,17 @@ export const CompletionDetailsCard = ({
   const [copied, setCopied] = useState(false);
 
   const explorerUrl = getTransactionUrl(chainId, hash);
-
-  const formatCompletionTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-
-    if (mins === 0) {
-      return `${secs}s`;
-    }
-
-    return `${mins}m ${secs}s`;
-  };
+  const transactionType = isNativeToken
+    ? "Native asset transfer"
+    : "ERC-20 token transfer";
+  const formattedHash = truncateHash(hash);
+  const formattedTime = formatCompletionTime(completionTimeSeconds);
 
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(hash);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setCopied(false), COPY_RESET_DELAY);
     } catch (err) {
       console.error("Failed to copy:", err);
     }
@@ -53,11 +56,10 @@ export const CompletionDetailsCard = ({
         Transaction Confirmed
       </div>
 
-      {/* Transaction Hash */}
       <div className="flex flex-col gap-y-1">
         <span className="text-muted-foreground text-xs">Transaction Hash</span>
         <div className="flex items-center justify-between gap-2 bg-card/50 rounded-lg p-2">
-          <span className="font-mono text-xs">{formatTxHash(hash)}</span>
+          <span className="font-mono text-xs">{formattedHash}</span>
           <button
             onClick={handleCopy}
             className="p-1.5 hover:bg-muted rounded transition-colors"
@@ -72,7 +74,6 @@ export const CompletionDetailsCard = ({
         </div>
       </div>
 
-      {/* Amount */}
       <div className="flex items-center justify-between">
         <span className="text-muted-foreground">Amount:</span>
         <span className="font-medium">
@@ -80,23 +81,16 @@ export const CompletionDetailsCard = ({
         </span>
       </div>
 
-      {/* Completion Time */}
       <div className="flex items-center justify-between">
         <span className="text-muted-foreground">Completion Time:</span>
-        <span className="font-medium font-mono">
-          {formatCompletionTime(completionTimeSeconds)}
-        </span>
+        <span className="font-medium font-mono">{formattedTime}</span>
       </div>
 
-      {/* Transaction Type */}
       <div className="flex items-center justify-between">
         <span className="text-muted-foreground">Transaction Type:</span>
-        <span className="font-medium">
-          {isNativeToken ? "Native asset transfer" : "ERC-20 token transfer"}
-        </span>
+        <span className="font-medium">{transactionType}</span>
       </div>
 
-      {/* Block Explorer Link */}
       <a
         href={explorerUrl}
         target="_blank"
