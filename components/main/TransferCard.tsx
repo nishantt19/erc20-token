@@ -9,12 +9,8 @@ import {
 import { erc20Abi, parseUnits } from "viem";
 import { toast } from "sonner";
 
-import { TransferFormValues } from "@/schema/transferSchema";
-import {
-  TransactionEstimate as TransactionEstimateType,
-  TransactionStatus,
-  CHAIN_ID,
-} from "@/types";
+import type { TransferFormValues } from "@/schema/transferSchema";
+import type { TransactionEstimate, TransactionStatus, CHAIN_ID } from "@/types";
 
 import { TokenAmountInput, AddressInput } from "@/components/main/input";
 import { TransactionEstimation } from "@/components/main/TransactionEstimation";
@@ -38,7 +34,7 @@ const TransferCard = () => {
     "idle"
   );
   const [transactionEstimate, setTransactionEstimate] =
-    useState<TransactionEstimateType | null>(null);
+    useState<TransactionEstimate | null>(null);
   const [currentTxStatus, setCurrentTxStatus] =
     useState<TransactionStatus | null>(null);
   const [completedTx, setCompletedTx] = useState<TransactionStatus | null>(

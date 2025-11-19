@@ -1,4 +1,4 @@
-import { NetworkCongestionLevel } from "@/types";
+import type { NetworkCongestionLevel } from "@/types";
 
 const CONGESTION_COLORS: Record<NetworkCongestionLevel, string> = {
   low: "text-green-500",

@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
 import { useMemo } from "react";
 import axios from "axios";
-import { InfuraGasResponse } from "@/types";
+import type { InfuraGasResponse } from "@/types";
 
 const REFETCH_INTERVAL = 12000;
 

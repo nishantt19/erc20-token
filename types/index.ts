@@ -47,9 +47,9 @@ export type TransactionStatus = {
   hash: `0x${string}`;
   status: "pending" | "included" | "confirmed";
   blockNumber?: bigint;
-  submittedAt: number; // timestamp
-  confirmedAt?: number; // timestamp
-  completionTimeSeconds?: number; // elapsed time in seconds (from timer)
+  submittedAt: number;
+  confirmedAt?: number;
+  completionTimeSeconds?: number;
   amount: string;
   recipient: string;
   tokenSymbol: string;

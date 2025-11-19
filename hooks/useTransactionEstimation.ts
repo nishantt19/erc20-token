@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { parseGwei, formatGwei } from "viem";
-import {
+import type {
   InfuraGasResponse,
   GasTier,
   TransactionEstimate,

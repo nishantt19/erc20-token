@@ -1,4 +1,4 @@
-import { CHAIN_ID } from "@/types";
+import type { CHAIN_ID } from "@/types";
 
 const BLOCK_EXPLORERS: Record<CHAIN_ID, string> = {
   1: "https://etherscan.io",

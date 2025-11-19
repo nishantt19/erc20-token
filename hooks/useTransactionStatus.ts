@@ -1,9 +1,14 @@
 "use client";
 import { useState, useEffect } from "react";
-import { CHAIN_ID } from "@/types";
+import type { CHAIN_ID } from "@/types";
 import { fetchTransactionWithRetry } from "@/utils/transactionHelpers";
 
-export type TxStatus = "idle" | "signing" | "pending" | "included" | "confirmed";
+export type TransactionStatusType =
+  | "idle"
+  | "signing"
+  | "pending"
+  | "included"
+  | "confirmed";
 
 interface UseTransactionStatusProps {
   hash: `0x${string}` | null;
@@ -16,7 +21,7 @@ export const useTransactionStatus = ({
   hash,
   chainId,
 }: UseTransactionStatusProps) => {
-  const [status, setStatus] = useState<TxStatus>("idle");
+  const [status, setStatus] = useState<TransactionStatusType>("idle");
   const [blockNumber, setBlockNumber] = useState<bigint | undefined>(undefined);
 
   useEffect(() => {
