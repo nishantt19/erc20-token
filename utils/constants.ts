@@ -28,3 +28,5 @@ export const GAS_CONSTANTS = {
 export const BIGINT_ZERO = BigInt(0);
 
 export const PERCENTAGE_OPTIONS = [25, 50, 75, 100] as const;
+
+export const COPY_RESET_DELAY = 2000;

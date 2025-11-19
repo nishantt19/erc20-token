@@ -1,12 +1,14 @@
 "use client";
 import { useState, useEffect } from "react";
 import { formatGwei } from "viem";
+
 import {
   getNetworkCongestionLevel,
   getCongestionColor,
   getCongestionLabel,
 } from "@/utils/networkCongestion";
 import type { TransactionEstimate } from "@/types";
+import { formatSeconds } from "@/utils/utils";
 
 interface TransactionEstimationProps {
   estimate: TransactionEstimate | null;
@@ -23,23 +25,6 @@ const TIER_LABELS: Record<string, string> = {
 };
 
 const UPDATE_INTERVAL = 1000;
-
-const formatWaitTime = (milliseconds: number): string => {
-  const seconds = milliseconds / 1000;
-  if (seconds < 1) return `~${seconds.toFixed(2)}s`;
-  if (seconds < 60) return `~${Math.floor(seconds)}s`;
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = Math.floor(seconds % 60);
-  return remainingSeconds === 0
-    ? `~${minutes}m`
-    : `~${minutes}m ${remainingSeconds}s`;
-};
-
-const formatElapsedTime = (seconds: number): string => {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return mins === 0 ? `${secs}s` : `${mins}m ${secs}s`;
-};
 
 export const TransactionEstimation = ({
   estimate,
@@ -99,7 +84,7 @@ export const TransactionEstimation = ({
           </span>
         </div>
         <span className="font-medium font-mono text-foreground">
-          {formatElapsedTime(elapsedTime)}
+          {formatSeconds(elapsedTime)}
         </span>
       </div>
       <div className="flex flex-col gap-y-2.5">
@@ -129,7 +114,7 @@ export const TransactionEstimation = ({
               Estimated Time:
             </span>
             <span className="font-semibold text-foreground">
-              {formatWaitTime(estimate.estimatedWaitTime)}
+              ~{formatSeconds(estimate.estimatedWaitTime / 1000)}
             </span>
           </div>
         )}

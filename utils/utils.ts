@@ -82,3 +82,11 @@ export const truncateHash = (hash: Hash): string => {
   if (!hash) return "";
   return `${hash.slice(0, 6)}...${hash.slice(-4)}`;
 };
+
+export const formatSeconds = (seconds: number): string => {
+  if (seconds < 1) return `${seconds.toFixed(2)}s`;
+
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return mins === 0 ? `${secs}s` : `${mins}m ${secs}s`;
+};
