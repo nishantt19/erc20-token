@@ -13,18 +13,18 @@ export const useTransactionEstimation = () => {
     (
       txMaxPriorityFee: bigint,
       txMaxFee: bigint,
-      gasFees: InfuraGasResponse
+      gasMetrics: InfuraGasResponse
     ): GasTier => {
       const tierPriorityFees = {
-        low: parseGwei(gasFees.low.suggestedMaxPriorityFeePerGas),
-        medium: parseGwei(gasFees.medium.suggestedMaxPriorityFeePerGas),
-        high: parseGwei(gasFees.high.suggestedMaxPriorityFeePerGas),
+        low: parseGwei(gasMetrics.low.suggestedMaxPriorityFeePerGas),
+        medium: parseGwei(gasMetrics.medium.suggestedMaxPriorityFeePerGas),
+        high: parseGwei(gasMetrics.high.suggestedMaxPriorityFeePerGas),
       };
 
       const tierMaxFees = {
-        low: parseGwei(gasFees.low.suggestedMaxFeePerGas),
-        medium: parseGwei(gasFees.medium.suggestedMaxFeePerGas),
-        high: parseGwei(gasFees.high.suggestedMaxFeePerGas),
+        low: parseGwei(gasMetrics.low.suggestedMaxFeePerGas),
+        medium: parseGwei(gasMetrics.medium.suggestedMaxFeePerGas),
+        high: parseGwei(gasMetrics.high.suggestedMaxFeePerGas),
       };
 
       if (txMaxPriorityFee <= tierPriorityFees.low) return "low";
@@ -41,7 +41,7 @@ export const useTransactionEstimation = () => {
   const estimateTransaction = useCallback(
     async (
       txHash: `0x${string}`,
-      gasFees: InfuraGasResponse,
+      gasMetrics: InfuraGasResponse,
       chainId: CHAIN_ID
     ): Promise<TransactionEstimate | null> => {
       try {
@@ -51,18 +51,21 @@ export const useTransactionEstimation = () => {
           return null;
         }
 
-        const maxPriorityFeePerGas =
-          transaction.maxPriorityFeePerGas ?? BigInt(0);
-        const maxFeePerGas = transaction.maxFeePerGas ?? BigInt(0);
         const actualMaxPriorityFee =
-          maxPriorityFeePerGas || transaction.gasPrice || BigInt(0);
-        const actualMaxFee = maxFeePerGas || transaction.gasPrice || BigInt(0);
+          transaction.maxPriorityFeePerGas || transaction.gasPrice || BigInt(0);
+        const actualMaxFee =
+          transaction.maxFeePerGas || transaction.gasPrice || BigInt(0);
 
-        const tier = detectGasTier(actualMaxPriorityFee, actualMaxFee, gasFees);
-        const estimatedWaitTime = gasFees[tier].maxWaitTimeEstimate;
+        const tier = detectGasTier(
+          actualMaxPriorityFee,
+          actualMaxFee,
+          gasMetrics
+        );
+        // this estimated wait time should be dependent on network congestion too.
+        const estimatedWaitTime = gasMetrics[tier].maxWaitTimeEstimate;
 
         const gasLimit = transaction.gas;
-        const estimatedBaseFee = parseGwei(gasFees.estimatedBaseFee);
+        const estimatedBaseFee = parseGwei(gasMetrics.estimatedBaseFee);
         const effectiveGasPrice = estimatedBaseFee + actualMaxPriorityFee;
         const estimatedGasCost = gasLimit * effectiveGasPrice;
 
@@ -73,7 +76,7 @@ export const useTransactionEstimation = () => {
           maxFeePerGas: formatGwei(actualMaxFee),
           gasLimit: gasLimit.toString(),
           estimatedGasCost: estimatedGasCost.toString(),
-          networkCongestion: gasFees.networkCongestion,
+          networkCongestion: gasMetrics.networkCongestion,
         });
 
         return {

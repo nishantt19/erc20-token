@@ -27,20 +27,20 @@ export const useTokenBalance = (token: Token | null, amount?: string) => {
       },
     });
 
-  const liveBalance = useMemo(() => {
+  const balanceInWei = useMemo(() => {
     if (!token) return "0";
     if (token.native_token) return nativeBalanceData?.value.toString() ?? "0";
     return erc20BalanceData?.toString() ?? "0";
   }, [token, nativeBalanceData, erc20BalanceData]);
 
   const balance = useMemo(
-    () => (token ? formatUnits(BigInt(liveBalance), token.decimals) : "0"),
-    [token, liveBalance]
+    () => (token ? formatUnits(BigInt(balanceInWei), token.decimals) : "0"),
+    [token, balanceInWei]
   );
 
   const formattedBalance = useMemo(
-    () => (token ? parseFloat(formatBalance(liveBalance, token.decimals)) : 0),
-    [token, liveBalance]
+    () => (token ? parseFloat(formatBalance(balanceInWei, token.decimals)) : 0),
+    [token, balanceInWei]
   );
 
   const usdValue = useMemo(
@@ -64,7 +64,7 @@ export const useTokenBalance = (token: Token | null, amount?: string) => {
 
   return {
     balance,
-    balanceInWei: liveBalance,
+    balanceInWei,
     formattedBalance,
     usdValue,
     isInsufficientBalance,

@@ -6,7 +6,7 @@ import type { InfuraGasResponse } from "@/types";
 
 const REFETCH_INTERVAL = 12000;
 
-export const useGasFees = () => {
+export const useGasMetrics = () => {
   const { chainId } = useAccount();
 
   const queryFn = useMemo(
@@ -22,11 +22,11 @@ export const useGasFees = () => {
   );
 
   const {
-    data: gasFees,
+    data: gasMetrics,
     isLoading,
     error,
   } = useQuery<InfuraGasResponse>({
-    queryKey: ["gasFees", chainId],
+    queryKey: ["gasMetrics", chainId],
     queryFn,
     enabled: !!chainId,
     staleTime: REFETCH_INTERVAL,
@@ -34,7 +34,7 @@ export const useGasFees = () => {
   });
 
   return {
-    gasFees,
+    gasMetrics,
     isLoading,
     error,
   };

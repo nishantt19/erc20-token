@@ -17,7 +17,7 @@ import { TransactionEstimation } from "@/components/main/TransactionEstimation";
 import { TransactionSuccess } from "@/components/main/TransactionSuccess";
 import { useTransferForm } from "@/hooks/useTransferForm";
 import { useWalletTokens } from "@/hooks/useWalletTokens";
-import { useGasFees } from "@/hooks/useGasFees";
+import { useGasMetrics } from "@/hooks/useGasMetrics";
 import { useTransactionEstimation } from "@/hooks/useTransactionEstimation";
 import { useTokenBalance } from "@/hooks/useTokenBalance";
 import { useTransactionStatus } from "@/hooks/useTransactionStatus";
@@ -54,7 +54,7 @@ const TransferCard = () => {
   } = useTransferForm({ initialToken: nativeToken });
 
   const selectedToken = isConnected ? token : null;
-  const { gasFees } = useGasFees();
+  const { gasMetrics } = useGasMetrics();
   const { refetchBalance } = useTokenBalance(selectedToken, undefined);
   const { estimateTransaction } = useTransactionEstimation();
 
@@ -139,10 +139,10 @@ const TransferCard = () => {
 
   const handleTransactionEstimate = useCallback(
     async (hash: `0x${string}`) => {
-      if (gasFees && chainId) {
+      if (gasMetrics && chainId) {
         const estimate = await estimateTransaction(
           hash,
-          gasFees,
+          gasMetrics,
           chainId as CHAIN_ID
         );
         if (estimate) {
@@ -165,7 +165,7 @@ const TransferCard = () => {
         });
       }
     },
-    [gasFees, chainId, estimateTransaction]
+    [gasMetrics, chainId, estimateTransaction]
   );
 
   const handleError = useCallback(
@@ -312,7 +312,7 @@ const TransferCard = () => {
           startTime={currentTxStatus.submittedAt}
           blockNumber={blockNumber}
           status={liveStatus === "included" ? "included" : "pending"}
-          networkCongestion={gasFees?.networkCongestion}
+          networkCongestion={gasMetrics?.networkCongestion}
         />
       )}
 
