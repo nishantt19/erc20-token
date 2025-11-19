@@ -25,6 +25,13 @@ export const useTransactionStatus = ({
   const [blockNumber, setBlockNumber] = useState<bigint | undefined>(undefined);
 
   useEffect(() => {
+    if (!hash) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setStatus("idle");
+      setBlockNumber(undefined);
+    }
+  }, [hash]);
+  useEffect(() => {
     if (!hash || !chainId) return;
 
     const checkStatus = async () => {

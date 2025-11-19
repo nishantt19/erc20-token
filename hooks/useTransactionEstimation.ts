@@ -28,7 +28,11 @@ export const useTransactionEstimation = () => {
           actualMaxFee,
           gasMetrics
         );
-        const estimatedWaitTime = gasMetrics[tier].maxWaitTimeEstimate;
+        const congestion = gasMetrics.networkCongestion;
+        const maxWaitTime = gasMetrics[tier].maxWaitTimeEstimate;
+        const minWaitTime = gasMetrics[tier].minWaitTimeEstimate;
+        const estimatedWaitTime =
+          ((maxWaitTime + minWaitTime) * (1 + congestion)) / 2;
 
         const gasLimit = transaction.gas;
         const estimatedBaseFee = parseGwei(gasMetrics.estimatedBaseFee);

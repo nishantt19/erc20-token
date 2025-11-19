@@ -28,7 +28,7 @@ export const stringToGradient = (str: string): string => {
 export const formatBalance = (
   balance: bigint | string | number,
   decimals: number,
-  maxDecimals: number = 4
+  maxDecimals: number = 6
 ): string => {
   const balanceString = formatUnits(BigInt(balance), decimals);
   const numericBalance = parseFloat(balanceString);
