@@ -1,43 +1,10 @@
 import { useCallback } from "react";
 import { parseGwei, formatGwei } from "viem";
-import type {
-  InfuraGasResponse,
-  GasTier,
-  TransactionEstimate,
-  CHAIN_ID,
-} from "@/types";
+import type { InfuraGasResponse, TransactionEstimate, CHAIN_ID } from "@/types";
 import { fetchTransactionWithRetry } from "@/utils/transactionHelpers";
+import { detectGasTier } from "@/utils/gasCalculations";
 
 export const useTransactionEstimation = () => {
-  const detectGasTier = useCallback(
-    (
-      txMaxPriorityFee: bigint,
-      txMaxFee: bigint,
-      gasMetrics: InfuraGasResponse
-    ): GasTier => {
-      const tierPriorityFees = {
-        low: parseGwei(gasMetrics.low.suggestedMaxPriorityFeePerGas),
-        medium: parseGwei(gasMetrics.medium.suggestedMaxPriorityFeePerGas),
-        high: parseGwei(gasMetrics.high.suggestedMaxPriorityFeePerGas),
-      };
-
-      const tierMaxFees = {
-        low: parseGwei(gasMetrics.low.suggestedMaxFeePerGas),
-        medium: parseGwei(gasMetrics.medium.suggestedMaxFeePerGas),
-        high: parseGwei(gasMetrics.high.suggestedMaxFeePerGas),
-      };
-
-      if (txMaxPriorityFee <= tierPriorityFees.low) return "low";
-      if (txMaxPriorityFee <= tierPriorityFees.medium) return "medium";
-      if (txMaxPriorityFee <= tierPriorityFees.high) return "high";
-      if (txMaxFee <= tierMaxFees.low) return "low";
-      if (txMaxFee <= tierMaxFees.medium) return "medium";
-
-      return "high";
-    },
-    []
-  );
-
   const estimateTransaction = useCallback(
     async (
       txHash: `0x${string}`,
@@ -61,7 +28,6 @@ export const useTransactionEstimation = () => {
           actualMaxFee,
           gasMetrics
         );
-        // this estimated wait time should be dependent on network congestion too.
         const estimatedWaitTime = gasMetrics[tier].maxWaitTimeEstimate;
 
         const gasLimit = transaction.gas;
@@ -90,11 +56,10 @@ export const useTransactionEstimation = () => {
         return null;
       }
     },
-    [detectGasTier]
+    []
   );
 
   return {
     estimateTransaction,
-    detectGasTier,
   };
 };

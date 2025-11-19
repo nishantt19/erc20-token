@@ -9,6 +9,7 @@ import {
 } from "@/utils/networkCongestion";
 import type { TransactionEstimate } from "@/types";
 import { formatSeconds } from "@/utils/utils";
+import { GAS_TIER_LABELS } from "@/utils/gasCalculations";
 
 interface TransactionEstimationProps {
   estimate: TransactionEstimate | null;
@@ -17,12 +18,6 @@ interface TransactionEstimationProps {
   status: "pending" | "included";
   networkCongestion?: number;
 }
-
-const TIER_LABELS: Record<string, string> = {
-  low: "Low Priority",
-  medium: "Medium Priority",
-  high: "High Priority",
-};
 
 const UPDATE_INTERVAL = 1000;
 
@@ -64,7 +59,7 @@ export const TransactionEstimation = ({
         };
 
   const tierLabel = estimate
-    ? TIER_LABELS[estimate.tier] || estimate.tier
+    ? GAS_TIER_LABELS[estimate.tier] || estimate.tier
     : "Unknown";
   const formattedGasCost = estimate
     ? parseFloat(formatGwei(estimate.estimatedGasCost)).toFixed(2)
