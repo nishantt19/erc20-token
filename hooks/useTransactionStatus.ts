@@ -1,8 +1,7 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
-import { getTransaction } from "@wagmi/core";
-import { config } from "@/config/wagmi";
+import { useState, useEffect } from "react";
 import { CHAIN_ID } from "@/types";
+import { fetchTransactionWithRetry } from "@/utils/transactionHelpers";
 
 export type TxStatus = "idle" | "signing" | "pending" | "included" | "confirmed";
 
@@ -20,42 +19,22 @@ export const useTransactionStatus = ({
   const [status, setStatus] = useState<TxStatus>("idle");
   const [blockNumber, setBlockNumber] = useState<bigint | undefined>(undefined);
 
-  const checkTransactionStatus = useCallback(async () => {
+  useEffect(() => {
     if (!hash || !chainId) return;
 
-    try {
-      const tx = await getTransaction(config, {
-        hash,
-        chainId,
-      });
-
-      if (tx.blockNumber !== null) {
+    const checkStatus = async () => {
+      const tx = await fetchTransactionWithRetry(hash, chainId, 1);
+      if (tx?.blockNumber !== null) {
         setStatus("included");
-        setBlockNumber(tx.blockNumber);
+        setBlockNumber(tx?.blockNumber);
       } else {
         setStatus("pending");
       }
-    } catch (error) {
-      console.error("Error checking transaction status:", error);
-    }
+    };
+
+    const intervalId = setInterval(checkStatus, POLL_INTERVAL);
+    return () => clearInterval(intervalId);
   }, [hash, chainId]);
 
-  useEffect(() => {
-    if (!hash || !chainId) {
-      setStatus("idle");
-      setBlockNumber(undefined);
-      return;
-    }
-
-    checkTransactionStatus();
-
-    const intervalId = setInterval(checkTransactionStatus, POLL_INTERVAL);
-
-    return () => clearInterval(intervalId);
-  }, [hash, chainId, checkTransactionStatus]);
-
-  return {
-    status,
-    blockNumber,
-  };
+  return { status, blockNumber };
 };

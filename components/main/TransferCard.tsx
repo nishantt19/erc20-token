@@ -17,9 +17,8 @@ import {
 } from "@/types";
 
 import { TokenAmountInput, AddressInput } from "@/components/main/input";
-import { TransactionEstimate } from "@/components/main/TransactionEstimate";
-import { TransactionStatusCard } from "@/components/main/TransactionStatusCard";
-import { CompletionDetailsCard } from "@/components/main/CompletionDetailsCard";
+import { TransactionEstimation } from "@/components/main/TransactionEstimation";
+import { TransactionSuccess } from "@/components/main/TransactionSuccess";
 import { useTransferForm } from "@/hooks/useTransferForm";
 import { useWalletTokens } from "@/hooks/useWalletTokens";
 import { useGasFees } from "@/hooks/useGasFees";
@@ -311,15 +310,9 @@ const TransferCard = () => {
         </button>
       </form>
 
-      {transactionEstimate && (
-        <TransactionEstimate
+      {currentTxStatus && transactionEstimate && (
+        <TransactionEstimation
           estimate={transactionEstimate}
-          nativeSymbol={nativeToken?.symbol}
-        />
-      )}
-
-      {currentTxStatus && (
-        <TransactionStatusCard
           startTime={currentTxStatus.submittedAt}
           blockNumber={blockNumber}
           status={liveStatus === "included" ? "included" : "pending"}
@@ -328,7 +321,7 @@ const TransferCard = () => {
       )}
 
       {completedTx && chainId && (
-        <CompletionDetailsCard
+        <TransactionSuccess
           hash={completedTx.hash}
           amount={completedTx.amount}
           tokenSymbol={completedTx.tokenSymbol}

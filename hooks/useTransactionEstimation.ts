@@ -1,15 +1,20 @@
 import { useCallback } from "react";
 import { parseGwei, formatGwei } from "viem";
-import { getTransaction } from "@wagmi/core";
-import { config } from "@/config/wagmi";
-import { InfuraGasResponse, GasTier, TransactionEstimate, CHAIN_ID } from "@/types";
-
-const MAX_RETRIES = 5;
-const RETRY_DELAY = 1000;
+import {
+  InfuraGasResponse,
+  GasTier,
+  TransactionEstimate,
+  CHAIN_ID,
+} from "@/types";
+import { fetchTransactionWithRetry } from "@/utils/transactionHelpers";
 
 export const useTransactionEstimation = () => {
   const detectGasTier = useCallback(
-    (txMaxPriorityFee: bigint, txMaxFee: bigint, gasFees: InfuraGasResponse): GasTier => {
+    (
+      txMaxPriorityFee: bigint,
+      txMaxFee: bigint,
+      gasFees: InfuraGasResponse
+    ): GasTier => {
       const tierPriorityFees = {
         low: parseGwei(gasFees.low.suggestedMaxPriorityFeePerGas),
         medium: parseGwei(gasFees.medium.suggestedMaxPriorityFeePerGas),
@@ -40,32 +45,17 @@ export const useTransactionEstimation = () => {
       chainId: CHAIN_ID
     ): Promise<TransactionEstimate | null> => {
       try {
-        let transaction = null;
-        let retries = 0;
-
-        while (!transaction && retries < MAX_RETRIES) {
-          try {
-            transaction = await getTransaction(config, {
-              hash: txHash,
-              chainId,
-            });
-          } catch (error) {
-            retries++;
-            if (retries < MAX_RETRIES) {
-              console.log(`Transaction not found yet, retrying (${retries}/${MAX_RETRIES})...`);
-              await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-            }
-          }
-        }
-
+        const transaction = await fetchTransactionWithRetry(txHash, chainId);
         if (!transaction) {
           console.error("Transaction not found after retries");
           return null;
         }
 
-        const maxPriorityFeePerGas = transaction.maxPriorityFeePerGas ?? BigInt(0);
+        const maxPriorityFeePerGas =
+          transaction.maxPriorityFeePerGas ?? BigInt(0);
         const maxFeePerGas = transaction.maxFeePerGas ?? BigInt(0);
-        const actualMaxPriorityFee = maxPriorityFeePerGas || transaction.gasPrice || BigInt(0);
+        const actualMaxPriorityFee =
+          maxPriorityFeePerGas || transaction.gasPrice || BigInt(0);
         const actualMaxFee = maxFeePerGas || transaction.gasPrice || BigInt(0);
 
         const tier = detectGasTier(actualMaxPriorityFee, actualMaxFee, gasFees);
@@ -83,6 +73,7 @@ export const useTransactionEstimation = () => {
           maxFeePerGas: formatGwei(actualMaxFee),
           gasLimit: gasLimit.toString(),
           estimatedGasCost: estimatedGasCost.toString(),
+          networkCongestion: gasFees.networkCongestion,
         });
 
         return {
