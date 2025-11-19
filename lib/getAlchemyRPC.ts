@@ -1,8 +1,8 @@
 import { http } from "viem";
-import { ALCHEMY_NETWORK_SLUGS } from "@/utils/constants";
+import { CHAIN_CONFIG } from "@/utils/constants";
 
 export const getAlchemyTransport = (chainId: number) => {
-  const slug = ALCHEMY_NETWORK_SLUGS[chainId];
+  const slug = CHAIN_CONFIG[chainId].ALCHEMY_SLUG;
 
   if (!slug) {
     throw new Error(`Missing Alchemy slug for chain id ${chainId}`);

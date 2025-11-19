@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAccount } from "wagmi";
 import {
   sendTransaction,
@@ -8,6 +8,7 @@ import {
 } from "@wagmi/core";
 import { erc20Abi, parseUnits } from "viem";
 import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
 
 import type { TransferFormValues } from "@/schema/transferSchema";
 import type { TransactionEstimate, TransactionStatus, CHAIN_ID } from "@/types";
@@ -23,11 +24,13 @@ import { useTokenBalance } from "@/hooks/useTokenBalance";
 import { useTransactionStatus } from "@/hooks/useTransactionStatus";
 import { config } from "@/config/wagmi";
 import { truncateHash } from "@/utils/utils";
+import { useGasEstimation } from "@/hooks/useGasEstimation";
+import { CHAIN_CONFIG } from "@/utils/constants";
 
 const AUTO_HIDE_DELAY = 10000;
 
 const TransferCard = () => {
-  const { isConnected, chainId } = useAccount();
+  const { isConnected, chainId, address } = useAccount();
   const { nativeToken } = useWalletTokens();
   const [isProcessing, setIsProcessing] = useState(false);
   const [txStatus, setTxStatus] = useState<"idle" | "signing" | "pending">(
@@ -57,11 +60,48 @@ const TransferCard = () => {
   const { gasMetrics } = useGasMetrics();
   const { refetchBalance } = useTokenBalance(selectedToken, undefined);
   const { estimateTransaction } = useTransactionEstimation();
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const { getRequiredGasAmount, showGasError, isEstimating } =
+    useGasEstimation();
 
   const { status: liveStatus, blockNumber } = useTransactionStatus({
     hash: currentTxStatus?.hash ?? null,
     chainId: chainId as CHAIN_ID | undefined,
   });
+
+  const debouncedGasCheck = useCallback(
+    (value: string) => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+
+      if (selectedToken) {
+        debounceRef.current = setTimeout(() => {
+          getRequiredGasAmount(
+            selectedToken,
+            parseUnits(value, selectedToken.decimals),
+            (getValues("recipient") as `0x${string}`) || address
+          );
+        }, 500);
+      }
+    },
+    [address, getRequiredGasAmount, selectedToken, getValues]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isConnected) {
+      setIsProcessing(false);
+      setTxStatus("idle");
+      setTransactionEstimate(null);
+      setCurrentTxStatus(null);
+      setCompletedTx(null);
+      reset();
+    }
+  }, [isConnected, reset]);
 
   useEffect(() => {
     if (completedTx) {
@@ -266,6 +306,8 @@ const TransferCard = () => {
 
   const getButtonText = () => {
     if (!isConnected) return "Connect Wallet to Continue";
+    if (isEstimating) return "Estimating Gas Fee";
+    if (showGasError) return `Not Enough ${nativeToken.symbol}`;
     if (!isProcessing) return "Send Tokens";
     return txStatus === "signing"
       ? "Confirm in Wallet..."
@@ -282,7 +324,11 @@ const TransferCard = () => {
           <TokenAmountInput
             label="Amount"
             placeholder="0"
-            register={register("amount")}
+            register={register("amount", {
+              onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+                debouncedGasCheck(e.target.value);
+              },
+            })}
             error={errors.amount?.message}
             selectedToken={selectedToken}
             onTokenSelect={handleTokenSelect}
@@ -298,13 +344,40 @@ const TransferCard = () => {
             error={errors.recipient?.message}
           />
         </div>
-        <button
-          disabled={!isConnected || isProcessing}
-          className="py-4 px-5 rounded-2xl bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:bg-primary/60 disabled:cursor-not-allowed text-foreground text-lg font-semibold cursor-pointer"
+        <motion.button
+          disabled={
+            !isConnected || isProcessing || isEstimating || !!showGasError
+          }
+          className="py-4 px-5 rounded-2xl bg-primary hover:bg-primary/90 disabled:bg-primary/60 disabled:cursor-not-allowed text-foreground text-lg font-semibold cursor-pointer"
+          animate={{
+            opacity:
+              !isConnected || isProcessing || isEstimating || showGasError
+                ? 0.6
+                : 1,
+          }}
+          transition={{ duration: 0.2, ease: "easeInOut" }}
         >
           {getButtonText()}
-        </button>
+        </motion.button>
       </form>
+
+      <AnimatePresence>
+        {showGasError && isConnected && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="bg-card/90 border-2 border-destructive/50 py-3 px-5 rounded-2xl mt-6 text-secondary font-medium"
+          >
+            Not Enough{" "}
+            <span className="text-accent-blue">
+              {nativeToken.symbol} on {CHAIN_CONFIG[chainId || 1].NAME}
+            </span>{" "}
+            to cover gas fees.
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {currentTxStatus && transactionEstimate && (
         <TransactionEstimation

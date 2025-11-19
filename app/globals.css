@@ -33,6 +33,7 @@
   --color-select-hover: var(--select-hover-color);
   --color-placeholder: var(--text-placeholder);
   --font-dm-sans: var(--font-dm-sans);
+  --color-accent-blue: var(--accent-blue);
 }
 
 @media (prefers-color-scheme: dark) {

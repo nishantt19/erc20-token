@@ -1,19 +1,37 @@
 import { sepolia, mainnet, gnosis, base, baseSepolia } from "viem/chains";
 
-export const MORALIS_CHAIN_MAP: Record<number, string> = {
-  1: "eth",
-  11155111: "sepolia",
-  100: "gnosis",
-  8453: "base",
-  84532: "base sepolia",
-} as const;
+type ChainConfig = {
+  NAME: string;
+  MORALIS_ID: string;
+  ALCHEMY_SLUG: string;
+};
 
-export const ALCHEMY_NETWORK_SLUGS: Record<number, string> = {
-  [mainnet.id]: "eth-mainnet",
-  [sepolia.id]: "eth-sepolia",
-  [base.id]: "base-mainnet",
-  [baseSepolia.id]: "base-sepolia",
-  [gnosis.id]: "gnosis-mainnet",
+export const CHAIN_CONFIG: Record<number, ChainConfig> = {
+  [mainnet.id]: {
+    NAME: "Ethereum",
+    MORALIS_ID: "eth",
+    ALCHEMY_SLUG: "eth-mainnet",
+  },
+  [sepolia.id]: {
+    NAME: "Sepolia",
+    MORALIS_ID: "sepolia",
+    ALCHEMY_SLUG: "eth-sepolia",
+  },
+  [gnosis.id]: {
+    NAME: "Gnosis",
+    MORALIS_ID: "gnosis",
+    ALCHEMY_SLUG: "gnosis-mainnet",
+  },
+  [base.id]: {
+    NAME: "Base",
+    MORALIS_ID: "base",
+    ALCHEMY_SLUG: "base-mainnet",
+  },
+  [baseSepolia.id]: {
+    NAME: "Base Sepolia",
+    MORALIS_ID: "base sepolia",
+    ALCHEMY_SLUG: "base-sepolia",
+  },
 } as const;
 
 export const GAS_CONSTANTS = {

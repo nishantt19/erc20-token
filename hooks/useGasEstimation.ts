@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import { erc20Abi, parseUnits } from "viem";
 import { useAccount, useBalance } from "wagmi";
 import { estimateGas, getPublicClient, getGasPrice } from "@wagmi/core";
@@ -9,7 +9,7 @@ import { BIGINT_ZERO, GAS_CONSTANTS } from "@/utils/constants";
 import { config } from "@/config/wagmi";
 
 export const useGasEstimation = () => {
-  const { address, chainId } = useAccount();
+  const { address, chainId, isConnected } = useAccount();
   const { data: balance } = useBalance({ address });
 
   const client = useMemo(
@@ -19,6 +19,13 @@ export const useGasEstimation = () => {
 
   const [showGasError, setShowGasError] = useState(false);
   const [isEstimating, setIsEstimating] = useState(false);
+
+  useEffect(() => {
+    if (!isConnected) {
+      setShowGasError(false);
+      setIsEstimating(false);
+    }
+  }, [isConnected]);
 
   const getRequiredGasAmount = useCallback(
     async (

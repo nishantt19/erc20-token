@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useAccount, useChainId } from "wagmi";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import { MORALIS_CHAIN_MAP } from "@/utils/constants";
+import { CHAIN_CONFIG } from "@/utils/constants";
 import { type Token } from "@/types";
 
 const fetchWalletTokens = async (address: string, chain: string) => {
@@ -16,7 +16,7 @@ export const useWalletTokens = () => {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
 
-  const chain = useMemo(() => MORALIS_CHAIN_MAP[chainId], [chainId]);
+  const chain = useMemo(() => CHAIN_CONFIG[chainId].MORALIS_ID, [chainId]);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["walletTokens", address, chain],
@@ -28,8 +28,8 @@ export const useWalletTokens = () => {
 
   const tokens = useMemo(() => data?.result || [], [data?.result]);
 
-  const nativeToken = useMemo(() =>
-    tokens.find((token: Token) => token.native_token) || null,
+  const nativeToken: Token = useMemo(
+    () => tokens.find((token: Token) => token.native_token) || null,
     [tokens]
   );
 
