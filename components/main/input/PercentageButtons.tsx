@@ -1,6 +1,7 @@
 "use client";
 import { useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { AiOutlineLoading3Quarters } from "react-icons/ai";
 
 import { type Token } from "@/types";
 import { Tooltip } from "@/components/ui/Tooltip";
@@ -10,6 +11,7 @@ type PercentageButtonsProps = {
   selectedToken: Token | null;
   isHovered: boolean;
   onPercentageClick: (percentage: number) => void;
+  isCalculatingMax?: boolean;
 };
 
 const ANIMATION_CONFIG = {
@@ -28,12 +30,14 @@ export const PercentageButtons = ({
   selectedToken,
   isHovered,
   onPercentageClick,
+  isCalculatingMax = false,
 }: PercentageButtonsProps) => {
   const handleClick = useCallback(
     (percentage: number) => () => {
+      if (isCalculatingMax) return;
       onPercentageClick(percentage);
     },
-    [onPercentageClick]
+    [onPercentageClick, isCalculatingMax]
   );
 
   if (!selectedToken || !isHovered) return null;
@@ -44,13 +48,19 @@ export const PercentageButtons = ({
         {PERCENTAGE_OPTIONS.map((percentage, index) => {
           const isMaxButton = percentage === 100;
           const shouldShowTooltip = isMaxButton && selectedToken.native_token;
+          const isDisabled = isCalculatingMax;
 
           const buttonContent = (
             <motion.button
               key={percentage}
               type="button"
               onClick={handleClick(percentage)}
-              className="text-xs px-1.5 py-1 rounded-xl bg-select cursor-pointer hover:bg-select-hover text-secondary hover:text-foreground transition-colors border border-border-select"
+              disabled={isDisabled}
+              className={`text-xs px-1.5 py-1 w-10 flex items-center justify-center rounded-xl bg-select border border-border-select transition-colors ${
+                isDisabled
+                  ? "cursor-not-allowed opacity-60"
+                  : "cursor-pointer hover:bg-select-hover text-secondary hover:text-foreground"
+              }`}
               initial={ANIMATION_CONFIG.initial}
               animate={{
                 opacity: 1,
@@ -63,7 +73,13 @@ export const PercentageButtons = ({
               }}
               exit={ANIMATION_CONFIG.exit}
             >
-              {isMaxButton ? "MAX" : `${percentage}%`}
+              {isMaxButton && isCalculatingMax ? (
+                <AiOutlineLoading3Quarters className="w-3 h-3 animate-spin" />
+              ) : isMaxButton ? (
+                "MAX"
+              ) : (
+                `${percentage}%`
+              )}
             </motion.button>
           );
 

@@ -13,7 +13,7 @@ import { formatUnits } from "viem";
 
 import { computeMaxNativeInput } from "@/utils/utils";
 import { type Token } from "@/types";
-import { useGasEstimation, useTokenBalance } from "@/hooks";
+import { useGasEstimation, useTokenBalance, useWalletTokens } from "@/hooks";
 
 import { TokenAvatar, TokenSelectModal } from "@/components/main/token";
 import { InputWrapper } from "@/components/ui/InputWrapper";
@@ -45,7 +45,8 @@ const TokenAmountInput = ({
   getValues,
   control,
 }: TokenAmountInputProps) => {
-  const { isConnected, address } = useAccount();
+  const { isConnected, address, isConnecting, isReconnecting } = useAccount();
+  const { isLoading: isLoadingTokens } = useWalletTokens();
   const amount = useWatch({ name: fieldName, control });
 
   const {
@@ -58,6 +59,7 @@ const TokenAmountInput = ({
 
   const [isHovered, setIsHovered] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCalculatingMax, setIsCalculatingMax] = useState(false);
 
   const handlePercentageClick = useCallback(
     async (percentage: number) => {
@@ -69,12 +71,17 @@ const TokenAmountInput = ({
       let amountWei = (balanceInWei * percentageBig) / BigInt(100);
 
       if (percentage === 100 && selectedToken.native_token) {
-        const requiredGasAmountWei = await getRequiredGasAmount(
-          selectedToken,
-          balanceInWei,
-          recipient
-        );
-        amountWei = computeMaxNativeInput(balanceInWei, requiredGasAmountWei);
+        setIsCalculatingMax(true);
+        try {
+          const requiredGasAmountWei = await getRequiredGasAmount(
+            selectedToken,
+            balanceInWei,
+            recipient
+          );
+          amountWei = computeMaxNativeInput(balanceInWei, requiredGasAmountWei);
+        } finally {
+          setIsCalculatingMax(false);
+        }
       }
 
       const formattedAmount = formatUnits(amountWei, selectedToken.decimals);
@@ -115,7 +122,11 @@ const TokenAmountInput = ({
               {...register}
             />
 
-            {selectedToken ? (
+            {isConnecting || isReconnecting || isLoadingTokens ? (
+              <div className="rounded-full h-10 w-36 shrink-0 overflow-hidden">
+                <div className="w-full h-full bg-gray-700/50 animate-pulse rounded-full" />
+              </div>
+            ) : selectedToken ? (
               <div
                 className="rounded-full pl-1 pr-3 flex justify-between items-center gap-x-2 bg-select border border-border-select hover:bg-select-hover h-10 cursor-pointer shrink-0"
                 onClick={handleModalOpen}
@@ -159,6 +170,7 @@ const TokenAmountInput = ({
               selectedToken={selectedToken ?? null}
               isHovered={isHovered}
               onPercentageClick={handlePercentageClick}
+              isCalculatingMax={isCalculatingMax}
             />
           </div>
         </div>
