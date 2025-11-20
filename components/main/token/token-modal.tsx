@@ -5,11 +5,11 @@ import { Coin1 } from "iconsax-react";
 
 import { type Token } from "@/types";
 import { truncateAddress } from "@/utils/utils";
+import { useWalletTokens } from "@/hooks";
 
 import ShimmerAnimation from "@/components/ui/ShimmerAnimation";
 import { TokenAvatar } from "@/components/main/token";
 import Modal from "@/components/ui/Modal";
-import { useWalletTokens } from "@/hooks/useWalletTokens";
 
 type TokenSelectModalProps = {
   isOpen: boolean;

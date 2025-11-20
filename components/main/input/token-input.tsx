@@ -13,12 +13,11 @@ import { formatUnits } from "viem";
 
 import { computeMaxNativeInput } from "@/utils/utils";
 import { type Token } from "@/types";
+import { useGasEstimation, useTokenBalance } from "@/hooks";
 
 import { TokenAvatar, TokenSelectModal } from "@/components/main/token";
 import { InputWrapper } from "@/components/ui/InputWrapper";
 import { type TransferFormValues } from "@/schema/transferSchema";
-import { useTokenBalance } from "@/hooks/useTokenBalance";
-import { useGasEstimation } from "@/hooks/useGasEstimation";
 import { PercentageButtons } from "@/components/main/input/PercentageButtons";
 
 type TokenAmountInputProps = {
