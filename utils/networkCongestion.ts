@@ -1,9 +1,9 @@
 import type { NetworkCongestionLevel } from "@/types";
 
 const CONGESTION_COLORS: Record<NetworkCongestionLevel, string> = {
-  low: "text-green-500",
-  medium: "text-yellow-500",
-  high: "text-red-500",
+  low: "text-success",
+  medium: "text-warning",
+  high: "text-destructive",
 };
 
 const CONGESTION_LABELS: Record<NetworkCongestionLevel, string> = {

@@ -1,5 +1,5 @@
 "use client";
-import { useReducer, useEffect, useCallback, useRef } from "react";
+import { useReducer, useEffect, useCallback, useRef, useMemo } from "react";
 import { useAccount } from "wagmi";
 import {
   sendTransaction,
@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
 import type { TransferFormValues } from "@/schema/transferSchema";
-import type { CHAIN_ID } from "@/types";
+import type { CHAIN_ID, TransactionFlow } from "@/types";
 
 import { TokenAmountInput, AddressInput } from "@/components/main/input";
 import { TransactionEstimation } from "@/components/main/TransactionEstimation";
@@ -286,15 +286,26 @@ const TransferCard = () => {
     ]
   );
 
-  const getButtonText = () => {
+  const getButtonText = useMemo(() => {
     if (!isConnected) return "Connect Wallet to Continue";
     if (isEstimating) return "Estimating Gas Fee";
     if (showGasError) return `Not Enough ${nativeToken.symbol}`;
-    if (!isProcessing) return "Send Tokens";
-    return txFlow.phase === "signing"
-      ? "Confirm in Wallet..."
-      : "Transaction Pending...";
-  };
+
+    const phaseText: Record<TransactionFlow["phase"], string> = {
+      idle: "Send Tokens",
+      signing: "Confirm in Wallet...",
+      pending: "Transaction Pending...",
+      confirmed: "Transaction Confirmed",
+    };
+
+    return phaseText[txFlow.phase];
+  }, [
+    isConnected,
+    isEstimating,
+    showGasError,
+    nativeToken.symbol,
+    txFlow.phase,
+  ]);
 
   return (
     <div className="w-full flex flex-col gap-y-0">
@@ -335,7 +346,7 @@ const TransferCard = () => {
           }}
           transition={{ duration: 0.2, ease: "easeInOut" }}
         >
-          {getButtonText()}
+          {getButtonText}
         </motion.button>
       </form>
 
@@ -346,10 +357,11 @@ const TransferCard = () => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="bg-card/90 border-2 border-destructive/50 py-3 px-5 rounded-2xl mt-6 text-secondary font-medium"
+            className="w-full rounded-2xl p-4 mt-2 gap-y-3 text-sm border-2 border-destructive/50 bg-card/50 transition-all duration-300"
           >
-            Not Enough{" "}
-            <span className="text-accent-blue">
+            <span className="font-semibold text-destructive">ERROR: </span>Not
+            Enough{" "}
+            <span className="text-accent-blue font-semibold">
               {nativeToken.symbol} on {CHAIN_CONFIG[chainId || 1].NAME}
             </span>{" "}
             to cover gas fees.

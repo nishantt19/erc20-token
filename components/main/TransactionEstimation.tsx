@@ -48,14 +48,14 @@ export const TransactionEstimation = ({
   const statusStyles =
     status === "pending"
       ? {
-          border: "border-yellow-500/50",
-          textColor: "text-yellow-500",
-          dotBg: "bg-yellow-500",
+          border: "border-warning/50",
+          textColor: "text-warning",
+          dotBg: "bg-warning",
         }
       : {
-          border: "border-blue-500/50",
-          textColor: "text-blue-500",
-          dotBg: "bg-blue-500",
+          border: "border-accent-blue/50",
+          textColor: "text-accent-blue",
+          dotBg: "bg-accent-blue",
         };
 
   const tierLabel = estimate

@@ -6,6 +6,7 @@ import { getTransactionUrl } from "@/utils/blockExplorer";
 import { CHAIN_ID } from "@/types";
 import { formatSeconds, truncateHash } from "@/utils/utils";
 import { COPY_RESET_DELAY } from "@/utils/constants";
+import { Tooltip } from "../ui/Tooltip";
 
 interface TransactionSuccessProps {
   hash: `0x${string}`;
@@ -44,15 +45,15 @@ export const TransactionSuccess = ({
   };
 
   return (
-    <div className="w-full rounded-2xl p-4 mt-2 flex flex-col gap-y-3 text-sm border-2 border-green-500/50 bg-card/50 transition-all duration-300">
+    <div className="w-full rounded-2xl p-4 mt-2 flex flex-col gap-y-3 text-sm border-2 border-success/50 bg-card/50 transition-all duration-300">
       <div className="flex items-center justify-between pb-3 border-b border-border">
         <div className="flex items-center gap-2">
-          <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-lg" />
-          <span className="font-semibold text-base text-green-500">
+          <div className="w-2.5 h-2.5 rounded-full bg-success shadow-lg" />
+          <span className="font-semibold text-base text-success">
             Transaction Confirmed
           </span>
         </div>
-        <IoCheckmark className="w-5 h-5 text-green-500" />
+        <IoCheckmark className="w-5 h-5 text-success" />
       </div>
       <div className="flex flex-col gap-y-2.5">
         <div className="flex items-center justify-between">
@@ -81,28 +82,29 @@ export const TransactionSuccess = ({
           <span className="text-muted-foreground font-medium text-xs">
             Transaction Hash
           </span>
-          <div className="flex items-center justify-between gap-2 bg-card rounded-lg p-2.5 border border-border/50">
+          <div className="flex items-center justify-between gap-2 bg-input border-border-input rounded-lg p-2.5 border border-border/50">
             <span className="font-mono text-xs text-foreground">
               {formattedHash}
             </span>
-            <button
-              onClick={handleCopy}
-              className="p-1.5 hover:bg-muted/80 rounded transition-colors"
-              title="Copy full hash"
-            >
-              {copied ? (
-                <IoCheckmark className="w-4 h-4 text-green-500" />
-              ) : (
-                <IoCopy className="w-4 h-4 text-muted-foreground" />
-              )}
-            </button>
+            <Tooltip content="Copy to Clipboard" className="text-nowrap">
+              <button
+                onClick={handleCopy}
+                className="p-1.5 hover:bg-input-hover rounded-md transition-colors cursor-pointer"
+              >
+                {copied ? (
+                  <IoCheckmark className="w-4 h-4 text-success" />
+                ) : (
+                  <IoCopy className="w-4 h-4 text-foreground" />
+                )}
+              </button>
+            </Tooltip>
           </div>
         </div>
         <a
           href={explorerUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-1 flex items-center justify-center gap-2 py-2.5 px-4 bg-card hover:bg-card/80 rounded-lg transition-colors font-semibold text-foreground border border-border/50"
+          className="mt-1 flex items-center justify-center gap-2 py-2.5 px-4 bg-primary hover:bg-primary/90 rounded-xl transition-colors font-semibold text-foreground"
         >
           <span>View on Block Explorer</span>
           <IoOpenOutline className="w-4 h-4" />
