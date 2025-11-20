@@ -1,52 +1,35 @@
-"use client";
-import { useState, useEffect } from "react";
-import type { CHAIN_ID } from "@/types";
-import { fetchTransactionWithRetry } from "@/utils/transactionHelpers";
+import { useMemo } from "react";
+import { useTransaction } from "wagmi";
 
-export type TransactionStatusType =
-  | "idle"
-  | "signing"
-  | "pending"
-  | "included"
-  | "confirmed";
+import type { CHAIN_ID, TransactionStatusType } from "@/types";
+import { TRANSACTION_POLL_INTERVAL } from "@/utils/constants";
 
 interface UseTransactionStatusProps {
   hash: `0x${string}` | null;
   chainId: CHAIN_ID | undefined;
 }
 
-const POLL_INTERVAL = 3000;
-
 export const useTransactionStatus = ({
   hash,
   chainId,
 }: UseTransactionStatusProps) => {
-  const [status, setStatus] = useState<TransactionStatusType>("idle");
-  const [blockNumber, setBlockNumber] = useState<bigint | undefined>(undefined);
+  const { data } = useTransaction({
+    hash: hash ?? undefined,
+    chainId,
+    query: {
+      enabled: !!hash && !!chainId,
+      refetchInterval: TRANSACTION_POLL_INTERVAL,
+      notifyOnChangeProps: ["data"],
+    },
+  });
 
-  useEffect(() => {
-    if (!hash) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setStatus("idle");
-      setBlockNumber(undefined);
-    }
-  }, [hash]);
-  useEffect(() => {
-    if (!hash || !chainId) return;
+  const status = useMemo<TransactionStatusType>(() => {
+    if (!hash) return "idle";
+    if (!data) return "pending";
+    return data.blockNumber !== null ? "included" : "pending";
+  }, [hash, data]);
 
-    const checkStatus = async () => {
-      const tx = await fetchTransactionWithRetry(hash, chainId, 1);
-      if (tx?.blockNumber !== null) {
-        setStatus("included");
-        setBlockNumber(tx?.blockNumber);
-      } else {
-        setStatus("pending");
-      }
-    };
-
-    const intervalId = setInterval(checkStatus, POLL_INTERVAL);
-    return () => clearInterval(intervalId);
-  }, [hash, chainId]);
+  const blockNumber = useMemo(() => data?.blockNumber ?? undefined, [data]);
 
   return { status, blockNumber };
 };

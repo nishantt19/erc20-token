@@ -57,3 +57,9 @@ export type TransactionStatus = {
 };
 
 export type NetworkCongestionLevel = "low" | "medium" | "high";
+
+export type TransactionStatusType =
+  | "idle"
+  | "pending"
+  | "included"
+  | "confirmed";
