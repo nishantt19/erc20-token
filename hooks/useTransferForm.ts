@@ -16,7 +16,7 @@ interface UseTransferFormProps {
 export const useTransferForm = ({
   initialToken = null,
 }: UseTransferFormProps = {}) => {
-  const { isConnected } = useAccount();
+  const { isConnected, chainId } = useAccount();
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
 
   const token = useMemo(() => {
@@ -41,6 +41,11 @@ export const useTransferForm = ({
   }, [isConnected, form]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSelectedToken(null);
+  }, [chainId]);
+
+  useEffect(() => {
     if (token) {
       form.setValue("tokenAddress", token.token_address, {
         shouldValidate: false,
@@ -48,12 +53,15 @@ export const useTransferForm = ({
     }
   }, [token, form]);
 
-  const handleTokenSelect = useCallback((newToken: Token) => {
-    setSelectedToken(newToken);
-    form.setValue("tokenAddress", newToken.token_address, {
-      shouldValidate: true,
-    });
-  }, [form]);
+  const handleTokenSelect = useCallback(
+    (newToken: Token) => {
+      setSelectedToken(newToken);
+      form.setValue("tokenAddress", newToken.token_address, {
+        shouldValidate: true,
+      });
+    },
+    [form]
+  );
 
   return {
     ...form,

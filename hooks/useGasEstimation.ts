@@ -10,7 +10,7 @@ import { config } from "@/config/wagmi";
 
 export const useGasEstimation = () => {
   const { address, chainId, isConnected } = useAccount();
-  const { data: balance } = useBalance({ address });
+  const { data: balance } = useBalance({ address, chainId: chainId as CHAIN_ID });
 
   const client = useMemo(
     () => getPublicClient(config, { chainId: chainId as CHAIN_ID }),
@@ -26,6 +26,11 @@ export const useGasEstimation = () => {
       setIsEstimating(false);
     }
   }, [isConnected]);
+
+  useEffect(() => {
+    setShowGasError(false);
+    setIsEstimating(false);
+  }, [chainId]);
 
   const getRequiredGasAmount = useCallback(
     async (

@@ -34,7 +34,7 @@ const AUTO_HIDE_DELAY = 10000;
 
 const TransferCard = () => {
   const { isConnected, chainId, address } = useAccount();
-  const { nativeToken } = useWalletTokens();
+  const { nativeToken, isLoading: isLoadingTokens } = useWalletTokens();
   const [txFlow, dispatch] = useReducer(transactionReducer, { phase: "idle" });
 
   const isProcessing = txFlow.phase !== "idle";
@@ -288,8 +288,9 @@ const TransferCard = () => {
 
   const getButtonText = useMemo(() => {
     if (!isConnected) return "Connect Wallet to Continue";
+    if (isLoadingTokens) return "Loading Tokens...";
     if (isEstimating) return "Estimating Gas Fee";
-    if (showGasError) return `Not Enough ${nativeToken.symbol}`;
+    if (showGasError) return `Not Enough ${nativeToken?.symbol || "ETH"}`;
 
     const phaseText: Record<TransactionFlow["phase"], string> = {
       idle: "Send Tokens",
@@ -301,9 +302,10 @@ const TransferCard = () => {
     return phaseText[txFlow.phase];
   }, [
     isConnected,
+    isLoadingTokens,
     isEstimating,
     showGasError,
-    nativeToken.symbol,
+    nativeToken?.symbol,
     txFlow.phase,
   ]);
 
@@ -335,12 +337,20 @@ const TransferCard = () => {
         </div>
         <motion.button
           disabled={
-            !isConnected || isProcessing || isEstimating || !!showGasError
+            !isConnected ||
+            isLoadingTokens ||
+            isProcessing ||
+            isEstimating ||
+            !!showGasError
           }
           className="py-4 px-5 rounded-2xl bg-primary hover:bg-primary/90 disabled:bg-primary/60 disabled:cursor-not-allowed text-foreground text-lg font-semibold cursor-pointer"
           animate={{
             opacity:
-              !isConnected || isProcessing || isEstimating || showGasError
+              !isConnected ||
+              isLoadingTokens ||
+              isProcessing ||
+              isEstimating ||
+              showGasError
                 ? 0.6
                 : 1,
           }}
@@ -362,7 +372,8 @@ const TransferCard = () => {
             <span className="font-semibold text-destructive">ERROR: </span>Not
             Enough{" "}
             <span className="text-accent-blue font-semibold">
-              {nativeToken.symbol} on {CHAIN_CONFIG[chainId || 1].NAME}
+              {nativeToken?.symbol || "ETH"} on{" "}
+              {CHAIN_CONFIG[chainId || 1].NAME}
             </span>{" "}
             to cover gas fees.
           </motion.div>
