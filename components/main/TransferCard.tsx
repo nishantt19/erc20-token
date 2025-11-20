@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useReducer, useEffect, useCallback, useRef } from "react";
 import { useAccount } from "wagmi";
 import {
   sendTransaction,
@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
 import type { TransferFormValues } from "@/schema/transferSchema";
-import type { TransactionEstimate, TransactionStatus, CHAIN_ID } from "@/types";
+import type { CHAIN_ID } from "@/types";
 
 import { TokenAmountInput, AddressInput } from "@/components/main/input";
 import { TransactionEstimation } from "@/components/main/TransactionEstimation";
@@ -28,23 +28,20 @@ import {
 import { config } from "@/config/wagmi";
 import { truncateHash } from "@/utils/utils";
 import { CHAIN_CONFIG } from "@/utils/constants";
+import { transactionReducer } from "@/utils/transactionReducer";
 
 const AUTO_HIDE_DELAY = 10000;
 
 const TransferCard = () => {
   const { isConnected, chainId, address } = useAccount();
   const { nativeToken } = useWalletTokens();
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [txStatus, setTxStatus] = useState<"idle" | "signing" | "pending">(
-    "idle"
-  );
-  const [transactionEstimate, setTransactionEstimate] =
-    useState<TransactionEstimate | null>(null);
-  const [currentTxStatus, setCurrentTxStatus] =
-    useState<TransactionStatus | null>(null);
-  const [completedTx, setCompletedTx] = useState<TransactionStatus | null>(
-    null
-  );
+  const [txFlow, dispatch] = useReducer(transactionReducer, { phase: "idle" });
+
+  const isProcessing = txFlow.phase !== "idle";
+  const txHash =
+    txFlow.phase === "pending" || txFlow.phase === "confirmed"
+      ? txFlow.hash
+      : null;
 
   const {
     token,
@@ -56,6 +53,7 @@ const TransferCard = () => {
     getValues,
     control,
     reset,
+    watch,
   } = useTransferForm({ initialToken: nativeToken });
 
   const selectedToken = isConnected ? token : null;
@@ -67,53 +65,46 @@ const TransferCard = () => {
     useGasEstimation();
 
   const { status: liveStatus, blockNumber } = useTransactionStatus({
-    hash: currentTxStatus?.hash ?? null,
+    hash: txHash,
     chainId: chainId as CHAIN_ID | undefined,
   });
 
-  const debouncedGasCheck = useCallback(
-    (value: string) => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-
-      if (selectedToken) {
-        debounceRef.current = setTimeout(() => {
-          getRequiredGasAmount(
-            selectedToken,
-            parseUnits(value, selectedToken.decimals),
-            (getValues("recipient") as `0x${string}`) || address
-          );
-        }, 500);
-      }
-    },
-    [address, getRequiredGasAmount, selectedToken, getValues]
-  );
+  const amountValue = watch("amount");
 
   useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    if (selectedToken && amountValue) {
+      debounceRef.current = setTimeout(() => {
+        getRequiredGasAmount(
+          selectedToken,
+          parseUnits(amountValue, selectedToken.decimals),
+          (getValues("recipient") as `0x${string}`) || address
+        );
+      }, 500);
+    }
+
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, []);
+  }, [amountValue, selectedToken, getRequiredGasAmount, getValues, address]);
 
   useEffect(() => {
     if (!isConnected) {
-      setIsProcessing(false);
-      setTxStatus("idle");
-      setTransactionEstimate(null);
-      setCurrentTxStatus(null);
-      setCompletedTx(null);
+      dispatch({ type: "RESET" });
       reset();
     }
   }, [isConnected, reset]);
 
   useEffect(() => {
-    if (completedTx) {
+    if (txFlow.phase === "confirmed") {
       const timer = setTimeout(() => {
-        setCompletedTx(null);
+        dispatch({ type: "RESET" });
       }, AUTO_HIDE_DELAY);
 
       return () => clearTimeout(timer);
     }
-  }, [completedTx]);
+  }, [txFlow.phase]);
 
   const handleTransactionSuccess = useCallback(
     async (
@@ -140,17 +131,13 @@ const TransferCard = () => {
       toast.dismiss();
 
       if (receipt.status === "success") {
-        setCompletedTx({
-          hash,
-          status: "confirmed",
-          blockNumber: receipt.blockNumber,
-          submittedAt,
-          confirmedAt,
-          completionTimeSeconds,
-          amount: data.amount,
-          recipient: data.recipient,
-          tokenSymbol: selectedToken!.symbol,
-          isNativeToken: selectedToken!.native_token,
+        dispatch({
+          type: "CONFIRM_TRANSACTION",
+          payload: {
+            blockNumber: receipt.blockNumber,
+            confirmedAt,
+            completionTimeSeconds,
+          },
         });
 
         toast.success("Transfer successful!", {
@@ -166,14 +153,11 @@ const TransferCard = () => {
         });
 
         await refetchBalance();
-        setTransactionEstimate(null);
-        setCurrentTxStatus(null);
       } else {
         toast.error("Transaction failed", {
           description: "The transaction was reverted",
         });
-        setTransactionEstimate(null);
-        setCurrentTxStatus(null);
+        dispatch({ type: "RESET" });
       }
     },
     [selectedToken, reset, refetchBalance]
@@ -188,7 +172,10 @@ const TransferCard = () => {
           chainId as CHAIN_ID
         );
         if (estimate) {
-          setTransactionEstimate(estimate);
+          dispatch({
+            type: "UPDATE_ESTIMATE",
+            payload: estimate,
+          });
           toast.loading("Transaction pending...", {
             description: `Hash: ${truncateHash(
               hash
@@ -213,8 +200,7 @@ const TransferCard = () => {
   const handleError = useCallback(
     (error: Error & { message?: string }) => {
       toast.dismiss();
-      setTransactionEstimate(null);
-      setCurrentTxStatus(null);
+      dispatch({ type: "RESET" });
 
       if (error?.message?.includes("User rejected")) {
         toast.error("Transaction rejected", {
@@ -248,11 +234,7 @@ const TransferCard = () => {
         return;
       }
 
-      setIsProcessing(true);
-      setTxStatus("signing");
-      setTransactionEstimate(null);
-      setCurrentTxStatus(null);
-      setCompletedTx(null);
+      dispatch({ type: "START_SIGNING" });
 
       try {
         const amountInWei = parseUnits(data.amount, selectedToken.decimals);
@@ -275,27 +257,25 @@ const TransferCard = () => {
         }
 
         toast.dismiss();
-        setTxStatus("pending");
 
         const submittedAt = Date.now();
 
-        setCurrentTxStatus({
-          hash,
-          status: "pending",
-          submittedAt,
-          amount: data.amount,
-          recipient: data.recipient,
-          tokenSymbol: selectedToken.symbol,
-          isNativeToken: selectedToken.native_token,
+        dispatch({
+          type: "SUBMIT_TRANSACTION",
+          payload: {
+            hash,
+            submittedAt,
+            amount: data.amount,
+            recipient: data.recipient,
+            tokenSymbol: selectedToken.symbol,
+            isNativeToken: selectedToken.native_token,
+          },
         });
 
         await handleTransactionEstimate(hash);
         await handleTransactionSuccess(hash, data, submittedAt);
       } catch (error) {
         handleError(error as Error);
-      } finally {
-        setIsProcessing(false);
-        setTxStatus("idle");
       }
     },
     [
@@ -311,7 +291,7 @@ const TransferCard = () => {
     if (isEstimating) return "Estimating Gas Fee";
     if (showGasError) return `Not Enough ${nativeToken.symbol}`;
     if (!isProcessing) return "Send Tokens";
-    return txStatus === "signing"
+    return txFlow.phase === "signing"
       ? "Confirm in Wallet..."
       : "Transaction Pending...";
   };
@@ -326,11 +306,7 @@ const TransferCard = () => {
           <TokenAmountInput
             label="Amount"
             placeholder="0"
-            register={register("amount", {
-              onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
-                debouncedGasCheck(e.target.value);
-              },
-            })}
+            register={register("amount")}
             error={errors.amount?.message}
             selectedToken={selectedToken}
             onTokenSelect={handleTokenSelect}
@@ -381,23 +357,23 @@ const TransferCard = () => {
         )}
       </AnimatePresence>
 
-      {currentTxStatus && transactionEstimate && (
+      {txFlow.phase === "pending" && txFlow.estimate && (
         <TransactionEstimation
-          estimate={transactionEstimate}
-          startTime={currentTxStatus.submittedAt}
+          estimate={txFlow.estimate}
+          startTime={txFlow.submittedAt}
           blockNumber={blockNumber}
           status={liveStatus === "included" ? "included" : "pending"}
           networkCongestion={gasMetrics?.networkCongestion}
         />
       )}
 
-      {completedTx && chainId && (
+      {txFlow.phase === "confirmed" && chainId && (
         <TransactionSuccess
-          hash={completedTx.hash}
-          amount={completedTx.amount}
-          tokenSymbol={completedTx.tokenSymbol}
-          completionTimeSeconds={completedTx.completionTimeSeconds!}
-          isNativeToken={completedTx.isNativeToken}
+          hash={txFlow.hash}
+          amount={txFlow.amount}
+          tokenSymbol={txFlow.tokenSymbol}
+          completionTimeSeconds={txFlow.completionTimeSeconds}
+          isNativeToken={txFlow.isNativeToken}
           chainId={chainId as CHAIN_ID}
         />
       )}

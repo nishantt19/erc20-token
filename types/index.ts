@@ -43,18 +43,55 @@ export type TransactionEstimate = {
   gasUsed: bigint;
 };
 
-export type TransactionStatus = {
-  hash: `0x${string}`;
-  status: "pending" | "included" | "confirmed";
-  blockNumber?: bigint;
-  submittedAt: number;
-  confirmedAt?: number;
-  completionTimeSeconds?: number;
-  amount: string;
-  recipient: string;
-  tokenSymbol: string;
-  isNativeToken: boolean;
-};
+export type TransactionFlow =
+  | { phase: "idle" }
+  | { phase: "signing" }
+  | {
+      phase: "pending";
+      hash: `0x${string}`;
+      submittedAt: number;
+      amount: string;
+      recipient: string;
+      tokenSymbol: string;
+      isNativeToken: boolean;
+      estimate: TransactionEstimate | null;
+    }
+  | {
+      phase: "confirmed";
+      hash: `0x${string}`;
+      blockNumber: bigint;
+      submittedAt: number;
+      confirmedAt: number;
+      completionTimeSeconds: number;
+      amount: string;
+      recipient: string;
+      tokenSymbol: string;
+      isNativeToken: boolean;
+    };
+
+export type TransactionAction =
+  | { type: "START_SIGNING" }
+  | {
+      type: "SUBMIT_TRANSACTION";
+      payload: {
+        hash: `0x${string}`;
+        submittedAt: number;
+        amount: string;
+        recipient: string;
+        tokenSymbol: string;
+        isNativeToken: boolean;
+      };
+    }
+  | { type: "UPDATE_ESTIMATE"; payload: TransactionEstimate }
+  | {
+      type: "CONFIRM_TRANSACTION";
+      payload: {
+        blockNumber: bigint;
+        confirmedAt: number;
+        completionTimeSeconds: number;
+      };
+    }
+  | { type: "RESET" };
 
 export type NetworkCongestionLevel = "low" | "medium" | "high";
 
