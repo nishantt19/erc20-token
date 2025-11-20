@@ -10,7 +10,10 @@ import { config } from "@/config/wagmi";
 
 export const useGasEstimation = () => {
   const { address, chainId, isConnected } = useAccount();
-  const { data: balance } = useBalance({ address, chainId: chainId as CHAIN_ID });
+  const { data: balance } = useBalance({
+    address,
+    chainId: chainId as CHAIN_ID,
+  });
 
   const client = useMemo(
     () => getPublicClient(config, { chainId: chainId as CHAIN_ID }),
@@ -19,17 +22,20 @@ export const useGasEstimation = () => {
 
   const [showGasError, setShowGasError] = useState(false);
   const [isEstimating, setIsEstimating] = useState(false);
+  const [lastFailedAmount, setLastFailedAmount] = useState<bigint | null>(null);
 
   useEffect(() => {
     if (!isConnected) {
       setShowGasError(false);
       setIsEstimating(false);
+      setLastFailedAmount(null);
     }
   }, [isConnected]);
 
   useEffect(() => {
     setShowGasError(false);
     setIsEstimating(false);
+    setLastFailedAmount(null);
   }, [chainId]);
 
   const getRequiredGasAmount = useCallback(
@@ -40,7 +46,20 @@ export const useGasEstimation = () => {
     ): Promise<bigint> => {
       if (!address || !amountWei || Number(amountWei) === 0) {
         setShowGasError(false);
+        setLastFailedAmount(null);
         return BIGINT_ZERO;
+      }
+
+      if (lastFailedAmount !== null && amountWei >= lastFailedAmount) {
+        setShowGasError(true);
+        return parseUnits(
+          GAS_CONSTANTS.FALLBACK_RESERVE_NATIVE_TOKEN,
+          GAS_CONSTANTS.NATIVE_TOKEN_DECIMALS
+        );
+      }
+
+      if (lastFailedAmount !== null && amountWei < lastFailedAmount) {
+        setLastFailedAmount(null);
       }
 
       setIsEstimating(true);
@@ -82,16 +101,26 @@ export const useGasEstimation = () => {
         const requiredGas = calculateRequiredGasAmount(gasEstimate, gasPrice);
         const nativeTokenBalance = balance?.value ?? BIGINT_ZERO;
 
+        let hasGasError = false;
         if (token.native_token) {
-          setShowGasError(nativeTokenBalance - amountWei < requiredGas);
+          hasGasError = nativeTokenBalance - amountWei < requiredGas;
         } else {
-          setShowGasError(nativeTokenBalance < requiredGas);
+          hasGasError = nativeTokenBalance < requiredGas;
+        }
+
+        setShowGasError(hasGasError);
+
+        if (hasGasError) {
+          setLastFailedAmount(amountWei);
+        } else {
+          setLastFailedAmount(null);
         }
 
         return requiredGas;
       } catch (error) {
         console.error("Unexpected error estimating gas", error);
         setShowGasError(true);
+        setLastFailedAmount(amountWei);
         return parseUnits(
           GAS_CONSTANTS.FALLBACK_RESERVE_NATIVE_TOKEN,
           GAS_CONSTANTS.NATIVE_TOKEN_DECIMALS
@@ -100,7 +129,7 @@ export const useGasEstimation = () => {
         setIsEstimating(false);
       }
     },
-    [address, chainId, client, balance]
+    [address, chainId, client, balance, lastFailedAmount]
   );
 
   return {

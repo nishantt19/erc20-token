@@ -367,7 +367,7 @@ const TransferCard = () => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="w-full rounded-2xl p-4 mt-2 gap-y-3 text-sm border-2 border-destructive/50 bg-card/50 transition-all duration-300"
+            className="w-full rounded-2xl p-4 mt-2 gap-y-3 text-sm border-2 border-destructive/50 bg-card/50"
           >
             <span className="font-semibold text-destructive">ERROR: </span>Not
             Enough{" "}
